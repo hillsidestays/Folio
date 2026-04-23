@@ -2391,6 +2391,7 @@ function setAuthError(panel, msg) {
 }
 
 async function signInWithGoogle() {
+  await supabaseClient.auth.signOut(); // clear any stale session before OAuth
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.href }
@@ -4377,12 +4378,23 @@ async function deleteKBEntry(id) {
   }
 
   // ── Wire Supabase auth listener ─────────────────────────
-  supabaseClient.auth.onAuthStateChange(handleAuthChange);
-
-  // Check for existing session immediately
-  supabaseClient.auth.getSession().then(({ data: { session } }) => {
-    handleAuthChange('INITIAL', session);
+  // onAuthStateChange fires with INITIAL_SESSION on load — no need for getSession() too
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      currentUser = null; currentProfile = null; WORKSPACE_ID = null;
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      showAuthPanel('signin');
+      return;
+    }
+    if (session) handleAuthChange(event, session);
+    else {
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      showAuthPanel('signin');
+    }
   });
+
+  // Seed auth overlay visibility immediately — hide app until session confirmed
+  document.getElementById('auth-overlay').classList.remove('hidden');
 })();
 </script>
 </body>
