@@ -1693,42 +1693,9 @@ body.demo-active #auth-overlay { padding-top: 36px; }
     <div class="page" id="page-integrations">
       <div class="section-meta">Connect Folio to your existing tools. Data syncs automatically — no exports, no manual entry.</div>
 
-      <!-- Supabase / Edge Function config -->
-      <div class="card" style="margin-bottom:16px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;">Supabase Project</div>
-            <div style="font-size:12px;color:var(--text3);">Required before connecting any integration. Deploy the Hospitable proxy Edge Function first.</div>
-          </div>
-          <span class="pill" id="supabase-status-pill" style="font-size:10px;background:var(--amber-dim);color:var(--amber);">Not configured</span>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-end;">
-          <div style="flex:1;">
-            <div class="form-label">Supabase Project URL</div>
-            <input class="form-input" id="supabase-url-input" type="url"
-              placeholder="https://derybgfiwxeebwmcobht.supabase.co"
-              value=""
-              oninput="this.value=this.value.trim()">
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-end;margin-top:10px;">
-          <div style="flex:1;">
-            <div class="form-label">Supabase Anon Key <span style="color:var(--text3);font-weight:400;">(Settings → API Keys → anon/public)</span></div>
-            <input class="form-input" id="supabase-anon-input" type="password"
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-              value=""
-              oninput="this.value=this.value.trim()">
-          </div>
-          <button class="btn-run" onclick="saveSupabaseConfig()" style="white-space:nowrap;">Save</button>
-        </div>
-        <div style="margin-top:10px;font-size:11px;color:var(--text3);line-height:1.6;">
-          Don't have a Supabase project yet? See <code style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--gold);">SETUP.md</code> in the repo — it's a 6-command process. The project ref looks like <code style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--text2);">https://&lt;ref&gt;.supabase.co</code>
-        </div>
-      </div>
-
       <!-- Hospitable integration card -->
       <div class="card" style="margin-bottom:16px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
           <div style="display:flex;align-items:center;gap:12px;">
             <div style="width:40px;height:40px;background:var(--bg4);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🏠</div>
             <div>
@@ -1739,26 +1706,32 @@ body.demo-active #auth-overlay { padding-top: 36px; }
           <span class="pill" id="hosp-status-pill" style="font-size:10px;background:var(--amber-dim);color:var(--amber);">Not connected</span>
         </div>
 
-        <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6;">
-          Connects via the Supabase Edge Function proxy. Your Hospitable PAT is stored as a Supabase secret — it never touches this file or your browser. When you click Connect, Folio will:
+        <!-- PAT input -->
+        <div style="margin-bottom:14px;">
+          <div class="form-label" style="margin-bottom:6px;">Hospitable API Key <span style="color:var(--text3);font-weight:400;">— Settings → API → Personal Access Token</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="form-input" id="hosp-pat-input" type="password"
+              placeholder="pat_••••••••••••••••••••••••••••••"
+              style="flex:1;font-family:'Geist Mono',monospace;font-size:12px;"
+              autocomplete="off">
+            <button class="btn-run" id="hosp-save-pat-btn" onclick="saveHospPAT()" style="white-space:nowrap;padding:7px 14px;">Save Key</button>
+          </div>
+          <div id="hosp-pat-status" style="font-size:11px;color:var(--text3);margin-top:6px;min-height:16px;"></div>
         </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Pull all properties and match to existing Folio records</div>
-          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Sync last 50 reservations with full financials</div>
-          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Import all reviews for sentiment tracking</div>
-          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Auto-build HOSP_PROP_MAP with real UUIDs</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Pull all properties · match to Folio records</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Sync last 90 days of reservations + financials</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Import reviews · calculate live rating averages</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Derive live occupancy % and ADR per property</div>
         </div>
 
         <div id="hosp-status" style="font-size:12px;color:var(--text3);margin-bottom:10px;min-height:18px;"></div>
+        <div id="hosp-log" style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--text3);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;max-height:160px;overflow-y:auto;margin-bottom:12px;display:none;line-height:1.8;"></div>
 
-        <!-- Log output -->
-        <div id="hosp-log" style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--text3);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;max-height:140px;overflow-y:auto;margin-bottom:12px;display:none;line-height:1.8;"></div>
-
-        <div id="hosp-connect-area">
-          <button class="btn-run" id="hosp-connect-btn" onclick="handleConnectHospitable()" style="width:100%;">
-            ⟳ Connect Hospitable
-          </button>
-        </div>
+        <button class="btn-run" id="hosp-connect-btn" onclick="handleConnectHospitable()" style="width:100%;" disabled>
+          ⟳ Connect Hospitable
+        </button>
       </div>
 
       <!-- HOSP_PROP_MAP inspector -->
@@ -2544,18 +2517,20 @@ function saveHospPropMap() {
 // ── Core proxy fetch ──────────────────────────────────────────────────────────
 async function hospFetch(path, params = {}) {
   const base = getProxyBase();
-  if (!base) throw new Error('Supabase URL not configured. Open Integrations panel to set it.');
-  if (!FOLIO_CONFIG.supabaseAnonKey) throw new Error('Supabase anon key not configured. Open Integrations panel to set it.');
+  if (!base) throw new Error('Proxy URL unavailable.');
+
+  // Get the user's current session token to authenticate with the Edge Function
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) throw new Error('Not authenticated.');
 
   const url = new URL(base);
   url.searchParams.set('path', path);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  // Supabase requires apikey + Authorization headers on all Edge Function requests
   const res = await fetch(url.toString(), {
     headers: {
-      'apikey': FOLIO_CONFIG.supabaseAnonKey,
-      'Authorization': `Bearer ${FOLIO_CONFIG.supabaseAnonKey}`,
+      'apikey':        SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${session.access_token}`,
     }
   });
   if (!res.ok) {
@@ -2783,11 +2758,24 @@ function enrichPropertyMetrics(props, reservations) {
   }));
 }
 
-// ── Supabase config is hardcoded — this just refreshes the status pill ────────
-function saveSupabaseConfig() {
-  const pill = document.getElementById('supabase-status-pill');
-  if (pill) { pill.textContent = 'Configured'; pill.style.background = 'var(--green-dim)'; pill.style.color = 'var(--green2)'; }
-  toast('✓ Supabase connected — ' + SUPABASE_URL);
+// ── Save Hospitable PAT to Supabase workspace row ────────────────────────────
+async function saveHospPAT() {
+  const pat = document.getElementById('hosp-pat-input')?.value.trim();
+  const statusEl = document.getElementById('hosp-pat-status');
+  const saveBtn  = document.getElementById('hosp-save-pat-btn');
+  const connectBtn = document.getElementById('hosp-connect-btn');
+  if (!pat) { if (statusEl) statusEl.innerHTML = '<span style="color:var(--red);">Paste your PAT first.</span>'; return; }
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+  const { error } = await supabaseClient.from('workspaces').update({ hosp_pat: pat }).eq('id', WORKSPACE_ID);
+  if (error) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red);">✕ ${error.message}</span>`;
+  } else {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green2);">✓ Key saved — ready to connect</span>';
+    if (connectBtn) connectBtn.disabled = false;
+    document.getElementById('hosp-pat-input').value = '';
+    document.getElementById('hosp-pat-input').placeholder = 'pat_••••••••••••••••• (saved)';
+  }
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Key'; }
 }
 
 // ── Default seed data (only writes if not already present) ──
@@ -3499,21 +3487,19 @@ function toast(msg) {
 //  INTEGRATIONS PAGE
 // ────────────────────────────────────────────────────────
 
-function renderIntegrationsPage() {
-  // Restore saved config into inputs
-  const savedUrl = localStorage.getItem('folio_supabase_url') || '';
-  const savedKey = localStorage.getItem('folio_supabase_anon_key') || '';
-  const urlInput = document.getElementById('supabase-url-input');
-  const keyInput = document.getElementById('supabase-anon-input');
-  if (urlInput && savedUrl) urlInput.value = savedUrl;
-  if (keyInput && savedKey) keyInput.value = savedKey;
-
-  // Update Supabase status pill
-  const supabasePill = document.getElementById('supabase-status-pill');
-  if (supabasePill && savedUrl && savedKey) {
-    supabasePill.textContent = 'Configured';
-    supabasePill.style.background = 'var(--green-dim)';
-    supabasePill.style.color = 'var(--green2)';
+async function renderIntegrationsPage() {
+  // Check if workspace already has a PAT saved
+  if (WORKSPACE_ID) {
+    const { data: ws } = await supabaseClient.from('workspaces').select('hosp_pat').eq('id', WORKSPACE_ID).single();
+    const hasPat = !!(ws?.hosp_pat);
+    const patStatus = document.getElementById('hosp-pat-status');
+    const connectBtn = document.getElementById('hosp-connect-btn');
+    const patInput = document.getElementById('hosp-pat-input');
+    if (hasPat) {
+      if (patStatus) patStatus.innerHTML = '<span style="color:var(--green2);">✓ API key saved — ready to connect</span>';
+      if (connectBtn) connectBtn.disabled = false;
+      if (patInput) patInput.placeholder = 'pat_••••••••••••••••• (saved)';
+    }
   }
 
   // Render HOSP_PROP_MAP table
@@ -4407,10 +4393,6 @@ async function deleteKBEntry(id) {
     const b = document.getElementById('onboard-banner');
     if (b) b.remove();
   }
-
-  // Mark Supabase as configured in integrations panel
-  const pill = document.getElementById('supabase-status-pill');
-  if (pill) { pill.textContent = 'Configured'; pill.style.background = 'var(--green-dim)'; pill.style.color = 'var(--green2)'; }
 
   // Patch KB nav button → openKBAdd
   const kbPrimaryBtn = document.getElementById('topbar-primary');
