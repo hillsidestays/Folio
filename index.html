@@ -2274,19 +2274,49 @@ async function syncEntity(entity, data) {
       return row;
     });
     if (rows.length) await supabaseClient.from('tasks').upsert(rows, { onConflict: 'id' });
+  } else if (entity === 'reservations') {
+    const rows = (data||[]).map(r => ({
+      id:            r.id,
+      workspace_id:  WORKSPACE_ID,
+      property_id:   r.propertyId || r.property_id || null,
+      guest_name:    r.guestName  || r.guest_name  || null,
+      check_in:      r.checkIn    || r.check_in    || null,
+      check_out:     r.checkOut   || r.check_out   || null,
+      nights:        parseInt(r.nights)        || null,
+      guests:        parseInt(r.guests)        || null,
+      status:        r.status   || null,
+      channel:       r.channel  || null,
+      total_revenue: parseFloat(r.totalRevenue || r.total_revenue) || null,
+      nightly_rate:  parseFloat(r.nightlyRate  || r.nightly_rate)  || null,
+      cleaning_fee:  parseFloat(r.cleaningFee  || r.cleaning_fee)  || null,
+    })).filter(r => r.id);
+    if (rows.length) await supabaseClient.from('reservations').upsert(rows, { onConflict: 'id' });
   }
 }
 
 async function loadWorkspaceData() {
   if (!WORKSPACE_ID) return;
-  const [propsRes, tasksRes] = await Promise.all([
+  const [propsRes, tasksRes, resRes] = await Promise.all([
     supabaseClient.from('properties').select('*').eq('workspace_id', WORKSPACE_ID),
-    supabaseClient.from('tasks').select('*').eq('workspace_id', WORKSPACE_ID)
+    supabaseClient.from('tasks').select('*').eq('workspace_id', WORKSPACE_ID),
+    supabaseClient.from('reservations').select('*').eq('workspace_id', WORKSPACE_ID)
   ]);
   const hadProps = (propsRes.data?.length || 0) > 0;
   const hadTasks = (tasksRes.data?.length || 0) > 0;
   if (hadProps) cache['properties'] = propsRes.data;
   if (hadTasks) cache['tasks']      = tasksRes.data.map(t => ({ ...t, property: t.property_id }));
+  if (resRes.data?.length) {
+    cache['reservations'] = resRes.data.map(r => ({
+      ...r,
+      propertyId:   r.property_id,
+      guestName:    r.guest_name,
+      checkIn:      r.check_in,
+      checkOut:     r.check_out,
+      totalRevenue: r.total_revenue,
+      nightlyRate:  r.nightly_rate,
+      cleaningFee:  r.cleaning_fee,
+    }));
+  }
   seedData();
   // First-time workspace: push demo seed to Supabase so it persists across sessions
   if (!hadProps && cache['properties']?.length) await syncEntity('properties', cache['properties']);
