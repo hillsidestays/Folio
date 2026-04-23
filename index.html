@@ -1158,7 +1158,7 @@ body.demo-active #auth-overlay { padding-top: 36px; }
     </button>
     <div>
       <span class="page-title" id="page-title">Dashboard</span>
-      <span class="page-subtitle" id="page-subtitle">— Good morning, Dylan</span>
+      <span class="page-subtitle" id="page-subtitle"></span>
     </div>
     <div class="search-bar">
       <span style="opacity:0.45;font-size:14px;">⌕</span>
@@ -1280,9 +1280,19 @@ body.demo-active #auth-overlay { padding-top: 36px; }
     <!-- ════════ TASKS ════════ -->
     <div class="page" id="page-tasks">
       <div class="tasks-toolbar">
-        <button class="filter-chip active" data-filter="all">All</button>
-        <button class="filter-chip" data-filter="overdue">Overdue</button>
-        <button class="filter-chip" data-filter="soon">Due Soon</button>
+        <button class="filter-chip active" data-filter="all" onclick="setTaskFilter('all',this)">All</button>
+        <button class="filter-chip" data-filter="overdue" onclick="setTaskFilter('overdue',this)">Overdue</button>
+        <button class="filter-chip" data-filter="soon" onclick="setTaskFilter('soon',this)">Due Soon</button>
+        <div style="width:1px;background:var(--border);height:16px;margin:0 4px;align-self:center;"></div>
+        <button class="filter-chip" data-assignee="dylan" onclick="setTaskAssignee('dylan',this)" style="gap:5px;">
+          <span style="width:14px;height:14px;border-radius:50%;background:var(--gold-dim);color:var(--gold2);font-size:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;">D</span>Dylan
+        </button>
+        <button class="filter-chip" data-assignee="susanna" onclick="setTaskAssignee('susanna',this)" style="gap:5px;">
+          <span style="width:14px;height:14px;border-radius:50%;background:var(--green-dim);color:var(--green2);font-size:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;">S</span>Susanna
+        </button>
+        <button class="filter-chip" data-assignee="tommy" onclick="setTaskAssignee('tommy',this)" style="gap:5px;">
+          <span style="width:14px;height:14px;border-radius:50%;background:var(--blue-dim);color:var(--blue);font-size:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;">T</span>Tommy
+        </button>
         <div class="spacer"></div>
         <button class="filter-chip" onclick="openTaskModal()">+ Add Task</button>
       </div>
@@ -2341,6 +2351,10 @@ const db = {
 };
 
 async function syncEntity(entity, data) {
+  if (entity === 'stack') {
+    try { localStorage.setItem('folio_stack', JSON.stringify(data)); } catch {}
+    return;
+  }
   if (!currentUser || !WORKSPACE_ID) return;
   if (entity === 'properties') {
     const rows = (data||[]).map(p => ({ ...p, workspace_id: WORKSPACE_ID }));
@@ -2362,9 +2376,14 @@ async function loadWorkspaceData() {
     supabaseClient.from('properties').select('*').eq('workspace_id', WORKSPACE_ID),
     supabaseClient.from('tasks').select('*').eq('workspace_id', WORKSPACE_ID)
   ]);
-  if (propsRes.data?.length)  cache['properties'] = propsRes.data;
-  if (tasksRes.data?.length)  cache['tasks']      = tasksRes.data.map(t => ({ ...t, property: t.property_id }));
+  const hadProps = (propsRes.data?.length || 0) > 0;
+  const hadTasks = (tasksRes.data?.length || 0) > 0;
+  if (hadProps) cache['properties'] = propsRes.data;
+  if (hadTasks) cache['tasks']      = tasksRes.data.map(t => ({ ...t, property: t.property_id }));
   seedData();
+  // First-time workspace: push demo seed to Supabase so it persists across sessions
+  if (!hadProps && cache['properties']?.length) await syncEntity('properties', cache['properties']);
+  if (!hadTasks && cache['tasks']?.length)      await syncEntity('tasks', cache['tasks']);
   refreshDashboard();
   renderTaskPage();
   renderPropertyGrid();
@@ -2805,10 +2824,10 @@ seedData();
 // ────────────────────────────────────────────────────────
 
 const PAGE_CONFIG = {
-  dashboard:   { title: 'Dashboard',        sub: '— Good morning, Dylan',           btn1: '+ Add Task',     btn2: '+ New Property' },
+  dashboard:   { title: 'Dashboard',        sub: () => { const h = new Date().getHours(); const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; const n = currentProfile?.name?.split(' ')[0] || 'Dylan'; return `— ${g}, ${n}`; }, btn1: '+ Add Task',     btn2: '+ New Property' },
   tasks:       { title: 'Tasks',            sub: () => { const t = db.get('tasks')||[]; const open = t.filter(x=>!x.done).length; const od = overdueCount(); return `— ${open} open${od ? ' · '+od+' overdue':''}` }, btn1: 'Import', btn2: '+ Add Task' },
   properties:  { title: 'Property Hub',     sub: () => { const p = db.get('properties')||[]; return `— ${p.length} active propert${p.length===1?'y':'ies'}` }, btn1: 'Import Data', btn2: '+ Add Property' },
-  revenue:     { title: 'Revenue',          sub: '— April 2026',                    btn1: 'Export CSV',     btn2: 'View Reports' },
+  revenue:     { title: 'Revenue',          sub: () => '— ' + new Date().toLocaleDateString('en-US', {month:'long', year:'numeric'}), btn1: 'Export CSV', btn2: 'View Reports' },
   maintenance: { title: 'Maintenance',      sub: '— 2 open · 1 urgent',             btn1: 'Assign Vendor',  btn2: '+ Log Issue' },
   crm:         { title: 'Owner CRM',        sub: '— 3 owners · 1 prospect',         btn1: '+ Add Note',     btn2: '+ Add Contact' },
   content:     { title: 'Content Calendar', sub: '— April 2026 · 55 posts',         btn1: 'Export',         btn2: '✦ Generate Month' },
@@ -2939,13 +2958,40 @@ function formatDate(d) {
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
 
+let taskStatusFilter   = 'all';
+let taskAssigneeFilter = '';
+
+function setTaskFilter(val, btn) {
+  taskStatusFilter = val;
+  document.querySelectorAll('.tasks-toolbar [data-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTaskPage();
+}
+
+function setTaskAssignee(val, btn) {
+  if (taskAssigneeFilter === val) {
+    taskAssigneeFilter = '';
+    btn.classList.remove('active');
+  } else {
+    taskAssigneeFilter = val;
+    document.querySelectorAll('.tasks-toolbar [data-assignee]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderTaskPage();
+}
+
 function renderTaskPage() {
-  const tasks = db.get('tasks') || [];
+  let tasks = db.get('tasks') || [];
   const props = db.get('properties') || [];
   const propMap = Object.fromEntries(props.map(p=>[p.id,p.name]));
   const today = new Date(); today.setHours(0,0,0,0);
+  const soon  = new Date(today); soon.setDate(soon.getDate()+7);
   const priorityBar = { high: 'priority-high', med: 'priority-med', low: 'priority-low' };
   const catPill = { 'Owner Comms': 'pill-gold', 'Revenue': 'pill-green', 'Maintenance': 'pill-red', 'Listing': 'pill-blue', 'Operations': 'pill-ghost', 'Seasonal': 'pill-amber', 'Other': 'pill-ghost' };
+
+  if (taskStatusFilter === 'overdue') tasks = tasks.filter(t => !t.done && t.due && new Date(t.due) < today);
+  else if (taskStatusFilter === 'soon') tasks = tasks.filter(t => !t.done && t.due && new Date(t.due) <= soon);
+  if (taskAssigneeFilter) tasks = tasks.filter(t => t.assignee === taskAssigneeFilter);
 
   const sorted = [...tasks].sort((a,b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
@@ -3005,6 +3051,11 @@ function deleteTask(id) {
 }
 
 function refreshDashboard() {
+  // Keep greeting subtitle in sync with real profile name
+  if (currentPage === 'dashboard') {
+    const cfg = PAGE_CONFIG['dashboard'];
+    document.getElementById('page-subtitle').textContent = typeof cfg.sub === 'function' ? cfg.sub() : cfg.sub;
+  }
   const props = db.get('properties') || [];
   const tasks = db.get('tasks') || [];
   const today = new Date(); today.setHours(0,0,0,0);
@@ -4336,9 +4387,12 @@ async function deleteKBEntry(id) {
 // ════════════════════════════════════════════════════════
 
 (function init() {
-  // Seed stack data if not present
+  // Load tech stack from localStorage (stack is not in Supabase)
   if (!db.get('stack')) {
-    db.set('stack', []);
+    try {
+      const saved = localStorage.getItem('folio_stack');
+      db.set('stack', saved ? JSON.parse(saved) : []);
+    } catch { db.set('stack', []); }
   }
 
   refreshDashboard();
