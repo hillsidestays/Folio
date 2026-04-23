@@ -2140,14 +2140,26 @@ body.demo-active #auth-overlay { padding-top: 36px; }
           <textarea class="kb-content-input" id="kb-entry-content" placeholder="Write your SOP, vendor details, notes, or paste content here..."></textarea>
         </div>
       </div>
-      <div class="form-row cols-2">
+      <div class="form-row">
         <div class="form-field">
-          <div class="form-label">File / Doc Link <span style="color:var(--text3);font-weight:400;">(Google Drive, Notion, etc.)</span></div>
-          <input class="form-input" id="kb-entry-fileurl" type="url" placeholder="https://drive.google.com/...">
+          <div class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Attachment</span>
+            <span style="font-size:10px;color:var(--text3);font-weight:400;">Paste a link OR upload a file</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="form-input" id="kb-entry-fileurl" type="text" placeholder="https://drive.google.com/... or any link" style="flex:1;">
+            <label class="btn-secondary" style="cursor:pointer;white-space:nowrap;padding:8px 12px;font-size:12px;" title="Upload from desktop">
+              ↑ Upload
+              <input type="file" id="kb-file-upload" style="display:none;" onchange="handleKBFileUpload(this)">
+            </label>
+          </div>
+          <div id="kb-upload-status" style="font-size:11px;color:var(--text3);margin-top:5px;display:none;"></div>
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-field">
-          <div class="form-label">Link Label</div>
-          <input class="form-input" id="kb-entry-filename" type="text" placeholder="e.g. Check-in SOP v3.pdf">
+          <div class="form-label">Link Label <span style="color:var(--text3);font-weight:400;">(optional display name)</span></div>
+          <input class="form-input" id="kb-entry-filename" type="text" placeholder="e.g. Guest Check-in SOP.pdf">
         </div>
       </div>
     </div>
@@ -4188,6 +4200,10 @@ function openKBAdd() {
   document.getElementById('kb-entry-fileurl').value  = '';
   document.getElementById('kb-entry-filename').value = '';
   document.getElementById('kb-entry-cat').value      = 'general';
+  document.getElementById('kb-entry-prop').value     = '';
+  document.getElementById('kb-file-upload').value    = '';
+  const s = document.getElementById('kb-upload-status');
+  s.style.display = 'none'; s.textContent = '';
   document.getElementById('kb-modal-title').textContent = 'Add KB Entry';
   document.getElementById('kb-modal-delete-btn').innerHTML = '';
   populateKBPropertyDropdown();
@@ -4241,10 +4257,38 @@ function openKBEdit(e) {
   openModal('kb-entry-modal');
 }
 
+async function handleKBFileUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { toast('File too large — max 20MB'); return; }
+
+  const status = document.getElementById('kb-upload-status');
+  status.style.display = '';
+  status.textContent = '⟳ Uploading ' + file.name + '…';
+
+  const ext  = file.name.split('.').pop();
+  const path = `${currentUser.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+
+  const { error } = await supabaseClient.storage.from('kb-files').upload(path, file, { upsert: false });
+
+  if (error) {
+    status.textContent = '✕ Upload failed: ' + error.message;
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  const { data: { publicUrl } } = supabaseClient.storage.from('kb-files').getPublicUrl(path);
+  document.getElementById('kb-entry-fileurl').value  = publicUrl;
+  document.getElementById('kb-entry-filename').value = document.getElementById('kb-entry-filename').value || file.name;
+  status.textContent = '✓ Uploaded — ' + file.name;
+  status.style.color = 'var(--green2)';
+}
+
 async function saveKBEntry() {
   const title = document.getElementById('kb-entry-title').value.trim();
   if (!title) { toast('Title is required'); document.getElementById('kb-entry-title').focus(); return; }
-  if (!WORKSPACE_ID) { toast('Not authenticated'); return; }
+  if (!WORKSPACE_ID) { toast('Not authenticated — please refresh and sign in again'); return; }
+  if (!currentUser)  { toast('No user session — please refresh'); return; }
 
   const id = document.getElementById('kb-entry-id').value;
   const entry = {
@@ -4266,7 +4310,11 @@ async function saveKBEntry() {
     ({ error } = await supabaseClient.from('kb_entries').insert(entry));
   }
 
-  if (error) { toast('Error saving: ' + error.message); return; }
+  if (error) {
+    console.error('KB save error:', error);
+    toast('Error: ' + error.message);
+    return;
+  }
 
   closeModal('kb-entry-modal');
   toast(id ? '✓ Entry updated' : '✓ Entry added');
