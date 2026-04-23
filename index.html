@@ -2546,18 +2546,28 @@ async function fetchHospitableProperties() {
   return data.data || data.properties || (Array.isArray(data) ? data : []);
 }
 
-// ── Fetch reservations — requires property UUIDs (Hospitable v2 requirement) ──
+// ── Fetch reservations — pass property UUIDs + explicit 90-day date range ────
 async function fetchHospitableReservations(hospPropertyIds = []) {
+  const end   = new Date();
+  const start = new Date(); start.setDate(start.getDate() - 90);
+  const fmt   = d => d.toISOString().slice(0, 10);
+  const params = { start_date: fmt(start), end_date: fmt(end) };
   const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
-  const data = await hospFetch('/reservations', {}, arrayParams);
+  const data = await hospFetch('/reservations', params, arrayParams);
   return data.data || data.reservations || (Array.isArray(data) ? data : []);
 }
 
-// ── Fetch reviews ─────────────────────────────────────────────────────────────
+// ── Fetch reviews — v2 reviews are per-property: /properties/{id}/reviews ────
 async function fetchHospitableReviews(hospPropertyIds = []) {
-  const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
-  const data = await hospFetch('/customers/me/reviews', {}, arrayParams);
-  return data.data || data.reviews || (Array.isArray(data) ? data : []);
+  const all = [];
+  for (const id of hospPropertyIds) {
+    try {
+      const data = await hospFetch(`/properties/${id}/reviews`);
+      const reviews = data.data || data.reviews || (Array.isArray(data) ? data : []);
+      all.push(...reviews.map(r => ({ ...r, propertyId: id })));
+    } catch {}
+  }
+  return all;
 }
 
 // ── Map Hospitable property → Folio property schema ──────────────────────────
