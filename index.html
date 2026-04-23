@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Folio v7.3 — STR Operating System</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root {
   --bg: #0E0F0E;
@@ -667,9 +668,229 @@ body.demo-active .main .topbar { top: 0; }
 .donut-svg { display: block; margin: 0 auto; }
 .donut-center-val { font-family: 'Instrument Serif', serif; font-size: 22px; fill: var(--text); }
 .donut-center-lbl { font-size: 10px; fill: var(--text3); }
+
+/* ── Auth overlay ── */
+#auth-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#auth-overlay.hidden { display: none; }
+.auth-card {
+  width: 400px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px 36px;
+}
+.auth-logo { display: flex; align-items: center; gap: 11px; margin-bottom: 32px; }
+.auth-logo-icon {
+  width: 38px; height: 38px; background: var(--gold);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Instrument Serif', serif; font-size: 20px; color: #0E0F0E;
+}
+.auth-logo-text { font-family: 'Instrument Serif', serif; font-size: 22px; color: var(--text); }
+.auth-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.auth-sub { font-size: 12.5px; color: var(--text2); margin-bottom: 28px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+.auth-divider-line { flex: 1; height: 1px; background: var(--border); }
+.auth-divider-text { font-size: 11px; color: var(--text3); }
+.auth-google-btn {
+  width: 100%; padding: 10px 16px; border-radius: var(--radius-sm);
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text); font-size: 13px; font-family: 'Geist', sans-serif;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: background 0.13s; margin-bottom: 4px;
+}
+.auth-google-btn:hover { background: var(--bg4); }
+.auth-google-icon { width: 18px; height: 18px; }
+.auth-switch { font-size: 12px; color: var(--text3); text-align: center; margin-top: 20px; }
+.auth-switch a { color: var(--gold); cursor: pointer; text-decoration: none; }
+.auth-switch a:hover { color: var(--gold2); }
+.auth-error { background: var(--red-dim); border: 1px solid var(--red); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 12px; color: var(--red); margin-bottom: 14px; display: none; }
+.auth-error.show { display: block; }
+.auth-success { background: var(--green-dim); border: 1px solid var(--green); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 12px; color: var(--green2); margin-bottom: 14px; display: none; }
+.auth-success.show { display: block; }
+.auth-no-access { text-align: center; padding: 20px 0; }
+.auth-no-access-icon { font-size: 36px; margin-bottom: 14px; }
+.auth-no-access-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.auth-no-access-sub { font-size: 12.5px; color: var(--text2); line-height: 1.6; }
+
+/* ── Sign-out in sidebar ── */
+.sidebar-signout {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.signout-btn {
+  width: 100%; padding: 6px 9px; border-radius: var(--radius-sm);
+  background: none; border: none; color: var(--text3);
+  font-size: 12px; font-family: 'Geist', sans-serif;
+  cursor: pointer; text-align: left; transition: color 0.13s;
+}
+.signout-btn:hover { color: var(--red); }
+
+/* ── KB full UI ── */
+.kb-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.kb-search {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  color: var(--text); font-size: 13px; font-family: 'Geist', sans-serif;
+  outline: none;
+}
+.kb-search:focus { border-color: var(--gold); }
+.kb-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.kb-cat-counts { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 24px; }
+.kb-cat-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.kb-cat-card:hover { border-color: var(--gold); }
+.kb-cat-card.active { border-color: var(--gold); background: var(--gold-dim2); }
+.kb-cat-icon { font-size: 18px; margin-bottom: 8px; }
+.kb-cat-label { font-size: 11.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.kb-cat-n { font-size: 10.5px; color: var(--text3); }
+.kb-entry-list { display: flex; flex-direction: column; gap: 1px; }
+.kb-entry-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 18px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; transition: border-color 0.13s, background 0.13s;
+}
+.kb-entry-row:hover { border-color: var(--border2); background: var(--bg3); }
+.kb-entry-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.kb-entry-title { flex: 1; font-size: 13px; color: var(--text); font-weight: 500; }
+.kb-entry-prop { font-size: 11px; color: var(--text3); }
+.kb-entry-date { font-size: 10.5px; color: var(--text3); font-family: 'Geist Mono', monospace; width: 52px; text-align: right; flex-shrink: 0; }
+.kb-empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+.kb-empty-icon { font-size: 32px; margin-bottom: 12px; }
+.kb-empty-title { font-size: 14px; color: var(--text2); margin-bottom: 6px; }
+
+/* KB view/edit modal */
+.kb-view-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+.kb-view-meta { flex: 1; }
+.kb-view-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.kb-view-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.kb-view-body { font-size: 13px; color: var(--text2); line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.kb-view-file { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg3); border-radius: var(--radius-sm); margin-top: 16px; }
+.kb-view-file-icon { font-size: 16px; }
+.kb-view-file-name { flex: 1; font-size: 12px; color: var(--text2); }
+.kb-view-file-link { font-size: 12px; color: var(--gold); text-decoration: none; }
+.kb-view-file-link:hover { color: var(--gold2); }
+.kb-content-input { width: 100%; min-height: 180px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px; color: var(--text); font-size: 13px; font-family: 'Geist', sans-serif; line-height: 1.65; outline: none; resize: vertical; }
+.kb-content-input:focus { border-color: var(--gold); }
+
+/* ── Assignee pills ── */
+.assignee-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px 2px 4px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 500; cursor: default;
+}
+.assignee-avatar {
+  width: 16px; height: 16px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 600;
+}
+.assignee-dylan    { background: rgba(200,168,75,0.15); color: var(--gold2); }
+.assignee-dylan    .assignee-avatar { background: var(--gold-dim); color: var(--gold2); }
+.assignee-susanna  { background: rgba(74,140,92,0.15); color: var(--green2); }
+.assignee-susanna  .assignee-avatar { background: var(--green-dim); color: var(--green2); }
+.assignee-tommy    { background: rgba(74,124,194,0.12); color: var(--blue); }
+.assignee-tommy    .assignee-avatar { background: var(--blue-dim); color: var(--blue); }
 </style>
 </head>
 <body>
+
+<!-- ═══════════════════════ AUTH OVERLAY ═══════════════════════ -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">F</div>
+      <div class="auth-logo-text">Folio</div>
+    </div>
+
+    <!-- Sign-in panel -->
+    <div id="auth-panel-signin">
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-sub">Sign in to Hillside Stays workspace</div>
+      <div class="auth-error" id="auth-error-signin"></div>
+      <button class="auth-google-btn" onclick="signInWithGoogle()">
+        <svg class="auth-google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+      <div class="auth-divider">
+        <div class="auth-divider-line"></div>
+        <div class="auth-divider-text">or email</div>
+        <div class="auth-divider-line"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-field">
+          <div class="form-label">Email</div>
+          <input class="form-input" id="auth-email-signin" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:18px;">
+        <div class="form-field">
+          <div class="form-label">Password</div>
+          <input class="form-input" id="auth-password-signin" type="password" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter') signInWithEmail()">
+        </div>
+      </div>
+      <button class="btn-run" style="width:100%;justify-content:center;" onclick="signInWithEmail()">Sign in →</button>
+      <div class="auth-switch">Don't have an account? <a onclick="showAuthPanel('signup')">Create one</a></div>
+    </div>
+
+    <!-- Sign-up panel -->
+    <div id="auth-panel-signup" style="display:none;">
+      <div class="auth-title">Create your account</div>
+      <div class="auth-sub">Your email must be on the approved list</div>
+      <div class="auth-error" id="auth-error-signup"></div>
+      <div class="auth-success" id="auth-success-signup"></div>
+      <button class="auth-google-btn" onclick="signInWithGoogle()">
+        <svg class="auth-google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84z"/></svg>
+        Sign up with Google
+      </button>
+      <div class="auth-divider">
+        <div class="auth-divider-line"></div>
+        <div class="auth-divider-text">or email</div>
+        <div class="auth-divider-line"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-field">
+          <div class="form-label">Full Name</div>
+          <input class="form-input" id="auth-name-signup" type="text" placeholder="Susanna Smith" autocomplete="name">
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-field">
+          <div class="form-label">Email</div>
+          <input class="form-input" id="auth-email-signup" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:18px;">
+        <div class="form-field">
+          <div class="form-label">Password</div>
+          <input class="form-input" id="auth-password-signup" type="password" placeholder="Min 8 characters" autocomplete="new-password"
+            onkeydown="if(event.key==='Enter') signUpWithEmail()">
+        </div>
+      </div>
+      <button class="btn-run" style="width:100%;justify-content:center;" onclick="signUpWithEmail()">Create account →</button>
+      <div class="auth-switch">Already have an account? <a onclick="showAuthPanel('signin')">Sign in</a></div>
+    </div>
+
+    <!-- No access panel -->
+    <div id="auth-panel-noaccess" style="display:none;">
+      <div class="auth-no-access">
+        <div class="auth-no-access-icon">🔒</div>
+        <div class="auth-no-access-title">Not on the list</div>
+        <div class="auth-no-access-sub">Your email isn't approved for this workspace yet.<br>Ask Dylan to add you in Supabase → workspace_invites.</div>
+        <div style="margin-top:20px;">
+          <button class="btn-secondary" onclick="supabaseClient.auth.signOut()">Use a different account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════ DEMO BAR ═══════════════════════ -->
 <div class="demo-bar" id="demo-bar" style="display:none;">
@@ -730,12 +951,15 @@ body.demo-active .main .topbar { top: 0; }
   </div>
   <div class="sidebar-footer">
     <div class="user-chip">
-      <div class="user-avatar">DS</div>
+      <div class="user-avatar" id="sidebar-avatar">DS</div>
       <div>
-        <div class="user-name">Dylan Smith</div>
-        <div class="user-role">Hillside Stays LLC</div>
+        <div class="user-name" id="sidebar-name">Dylan Smith</div>
+        <div class="user-role" id="sidebar-role">Hillside Stays LLC</div>
       </div>
     </div>
+  </div>
+  <div class="sidebar-signout">
+    <button class="signout-btn" onclick="signOut()">↩ Sign out</button>
   </div>
 </aside>
 
@@ -1219,28 +1443,22 @@ body.demo-active .main .topbar { top: 0; }
 
     <!-- ════════ KNOWLEDGE BASE ════════ -->
     <div class="page" id="page-knowledge">
-      <div class="quick-input">
-        <input type="text" placeholder="Search knowledge base...">
-        <button class="topbar-btn primary">+ Add Entry</button>
+      <div class="kb-toolbar">
+        <input class="kb-search" id="kb-search" type="text" placeholder="Search by title, content, or vendor..."
+          oninput="renderKBPage()">
+        <select class="form-select" id="kb-prop-filter" style="width:180px;" onchange="renderKBPage()">
+          <option value="">All Properties</option>
+        </select>
       </div>
-      <div class="kb-grid">
-        <div class="kb-card"><div class="kb-icon">📋</div><div class="kb-title">SOPs & Processes</div><div class="kb-count">12 documents</div></div>
-        <div class="kb-card"><div class="kb-icon">🔧</div><div class="kb-title">Vendor Directory</div><div class="kb-count">18 contacts</div></div>
-        <div class="kb-card"><div class="kb-icon">📊</div><div class="kb-title">Market Intel</div><div class="kb-count">7 reports</div></div>
-        <div class="kb-card"><div class="kb-icon">⚖️</div><div class="kb-title">Agreements & Legal</div><div class="kb-count">4 documents</div></div>
-        <div class="kb-card"><div class="kb-icon">🤖</div><div class="kb-title">AI Prompts Library</div><div class="kb-count">14 prompts</div></div>
-        <div class="kb-card"><div class="kb-icon">💡</div><div class="kb-title">Notes & Ideas</div><div class="kb-count">9 entries</div></div>
+      <div class="kb-filters" id="kb-cat-filters">
+        <button class="filter-chip active" data-cat="" onclick="setKBCat(this,'')">All</button>
+        <button class="filter-chip" data-cat="sop" onclick="setKBCat(this,'sop')">SOPs</button>
+        <button class="filter-chip" data-cat="house_rules" onclick="setKBCat(this,'house_rules')">House Rules</button>
+        <button class="filter-chip" data-cat="vendor_info" onclick="setKBCat(this,'vendor_info')">Vendors</button>
+        <button class="filter-chip" data-cat="emergency" onclick="setKBCat(this,'emergency')">Emergency</button>
+        <button class="filter-chip" data-cat="general" onclick="setKBCat(this,'general')">General</button>
       </div>
-      <div class="section-title">Recently Updated</div>
-      <div class="card">
-        <div class="kb-list">
-          <div class="kb-item"><div class="kb-item-icon">📋</div><div class="kb-item-name">Guest Check-in SOP — Standard</div><span class="pill pill-ghost" style="font-size:10px;margin-left:auto;">SOP</span><div class="kb-item-date" style="margin-left:10px;">Apr 18</div></div>
-          <div class="kb-item"><div class="kb-item-icon">🤖</div><div class="kb-item-name">Owner Report Prompt — Claude API</div><span class="pill pill-blue" style="font-size:10px;margin-left:auto;">AI Prompt</span><div class="kb-item-date" style="margin-left:10px;">Apr 12</div></div>
-          <div class="kb-item"><div class="kb-item-icon">🔧</div><div class="kb-item-name">Mountain Appliance Repair — Pigeon Forge</div><span class="pill pill-ghost" style="font-size:10px;margin-left:auto;">Vendor</span><div class="kb-item-date" style="margin-left:10px;">Apr 7</div></div>
-          <div class="kb-item"><div class="kb-item-icon">📊</div><div class="kb-item-name">WNC Spring 2026 Market Brief</div><span class="pill pill-gold" style="font-size:10px;margin-left:auto;">Market</span><div class="kb-item-date" style="margin-left:10px;">Apr 2</div></div>
-          <div class="kb-item"><div class="kb-item-icon">⚖️</div><div class="kb-item-name">Co-hosting Agreement Template — NC</div><span class="pill pill-ghost" style="font-size:10px;margin-left:auto;">Legal</span><div class="kb-item-date" style="margin-left:10px;">Mar 14</div></div>
-        </div>
-      </div>
+      <div id="kb-list-container" class="kb-entry-list"></div>
     </div>
 
     <!-- ════════ SEASONAL PLANNER ════════ -->
@@ -1664,6 +1882,17 @@ body.demo-active .main .topbar { top: 0; }
       </div>
       <div class="form-row">
         <div class="form-field">
+          <div class="form-label">Assignee</div>
+          <select class="form-select" id="task-assignee">
+            <option value="">Unassigned</option>
+            <option value="dylan">Dylan</option>
+            <option value="susanna">Susanna</option>
+            <option value="tommy">Tommy</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
           <div class="form-label">Notes (optional)</div>
           <textarea class="form-textarea" id="task-notes" placeholder="Any context or details..." style="min-height:56px;"></textarea>
         </div>
@@ -1675,6 +1904,99 @@ body.demo-active .main .topbar { top: 0; }
         <button class="btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
         <button class="btn-run" onclick="saveTask()">Add Task →</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KB Entry Modal (Add / Edit) ── -->
+<div class="modal-overlay" id="kb-entry-modal">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="kb-modal-title">Add KB Entry</div>
+        <div class="modal-subtitle">Docs, SOPs, vendors, and anything the team needs to find fast</div>
+      </div>
+      <div class="modal-close" onclick="closeModal('kb-entry-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="kb-entry-id">
+      <div class="form-row">
+        <div class="form-field">
+          <div class="form-label">Title *</div>
+          <input class="form-input" id="kb-entry-title" type="text" placeholder="e.g. Guest Check-in SOP — Lightning Bug Holler">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <div class="form-label">Category *</div>
+          <select class="form-select" id="kb-entry-cat">
+            <option value="sop">SOP / Process</option>
+            <option value="house_rules">House Rules</option>
+            <option value="vendor_info">Vendor Info</option>
+            <option value="emergency">Emergency</option>
+            <option value="general" selected>General</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <div class="form-label">Property</div>
+          <select class="form-select" id="kb-entry-prop">
+            <option value="">Global (all properties)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <div class="form-label">Content</div>
+          <textarea class="kb-content-input" id="kb-entry-content" placeholder="Write your SOP, vendor details, notes, or paste content here..."></textarea>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <div class="form-label">File / Doc Link <span style="color:var(--text3);font-weight:400;">(Google Drive, Notion, etc.)</span></div>
+          <input class="form-input" id="kb-entry-fileurl" type="url" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-field">
+          <div class="form-label">Link Label</div>
+          <input class="form-input" id="kb-entry-filename" type="text" placeholder="e.g. Check-in SOP v3.pdf">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div id="kb-modal-delete-btn"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="closeModal('kb-entry-modal')">Cancel</button>
+        <button class="btn-run" onclick="saveKBEntry()">Save Entry →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KB View Modal ── -->
+<div class="modal-overlay" id="kb-view-modal">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <div class="kb-view-header" style="flex:1;margin-bottom:0;">
+        <div class="kb-view-meta">
+          <div class="kb-view-title" id="kb-view-title"></div>
+          <div class="kb-view-pills" id="kb-view-pills"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:14px;">
+        <button class="btn-secondary" id="kb-view-edit-btn" style="font-size:11.5px;">Edit</button>
+        <div class="modal-close" onclick="closeModal('kb-view-modal')">✕</div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="kb-view-body" id="kb-view-body"></div>
+      <div class="kb-view-file" id="kb-view-file" style="display:none;">
+        <div class="kb-view-file-icon">🔗</div>
+        <div class="kb-view-file-name" id="kb-view-file-name"></div>
+        <a class="kb-view-file-link" id="kb-view-file-link" target="_blank" rel="noopener">Open →</a>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="font-size:11px;color:var(--text3);" id="kb-view-meta-line"></div>
+      <div></div>
     </div>
   </div>
 </div>
@@ -1789,33 +2111,169 @@ body.demo-active .main .topbar { top: 0; }
      SCRIPTS
 ══════════════════════════════════════════════════════ -->
 <script>
-// ────────────────────────────────────────────────────────
-//  DATA LAYER
-//  Keys: folio_{entity}_{ACCOUNT_ID}
-//  Designed for Supabase migration: swap localStorage R/W
-//  for supabase.from(entity).select/upsert, account_id → auth.user.id
-// ────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+//  SUPABASE — client init
+//  Project: derybgfiwxeebwmcobht
+//  Anon key: public key, safe to embed — RLS enforces access
+// ════════════════════════════════════════════════════════
 
-const ACCOUNT_ID = 'local_dylan_hillside';
+const SUPABASE_URL      = 'https://derybgfiwxeebwmcobht.supabase.co';
+const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_ANON_KEY'; // Settings → API → anon/public
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+// ── Auth state ────────────────────────────────────────────
+let currentUser    = null;  // auth.User
+let currentProfile = null;  // profiles row
+let WORKSPACE_ID   = null;
+
+// ── In-memory cache (replaces localStorage as the sync source of truth) ──
+const cache = {};
 
 const db = {
-  get: (entity) => { try { return JSON.parse(localStorage.getItem(`folio_${entity}_${ACCOUNT_ID}`)); } catch { return null; } },
-  set: (entity, data) => { localStorage.setItem(`folio_${entity}_${ACCOUNT_ID}`, JSON.stringify(data)); return data; },
-  update: (entity, fn) => { const d = db.get(entity); const next = fn(d); db.set(entity, next); return next; }
+  get:    (entity)     => cache[entity] ?? null,
+  set:    (entity, data) => { cache[entity] = data; syncEntity(entity, data); return data; },
+  update: (entity, fn)  => { const next = fn(cache[entity]); cache[entity] = next; syncEntity(entity, next); return next; }
 };
 
+async function syncEntity(entity, data) {
+  if (!currentUser || !WORKSPACE_ID) return;
+  if (entity === 'properties') {
+    const rows = (data||[]).map(p => ({ ...p, workspace_id: WORKSPACE_ID }));
+    if (rows.length) await supabaseClient.from('properties').upsert(rows, { onConflict: 'id' });
+  } else if (entity === 'tasks') {
+    const rows = (data||[]).map(t => ({
+      ...t,
+      workspace_id: WORKSPACE_ID,
+      property_id: t.property || t.property_id || null,
+      due: t.due || null
+    }));
+    if (rows.length) await supabaseClient.from('tasks').upsert(rows, { onConflict: 'id' });
+  }
+}
+
+async function loadWorkspaceData() {
+  if (!WORKSPACE_ID) return;
+  const [propsRes, tasksRes] = await Promise.all([
+    supabaseClient.from('properties').select('*').eq('workspace_id', WORKSPACE_ID),
+    supabaseClient.from('tasks').select('*').eq('workspace_id', WORKSPACE_ID)
+  ]);
+  if (propsRes.data?.length)  cache['properties'] = propsRes.data;
+  if (tasksRes.data?.length)  cache['tasks']      = tasksRes.data.map(t => ({ ...t, property: t.property_id }));
+  seedData();
+  refreshDashboard();
+  renderTaskPage();
+  renderPropertyGrid();
+  renderKBPage();
+  populateKBPropertyDropdown();
+}
+
 // ════════════════════════════════════════════════════════
-//  FOLIO v7 — HOSPITABLE INTEGRATION VIA SUPABASE EDGE FN
-//
-//  Replace SUPABASE_PROJECT_URL with your actual project URL:
-//    https://<ref>.supabase.co
-//
-//  Everything else is automatic once the Edge Function is deployed.
+//  AUTH FUNCTIONS
 // ════════════════════════════════════════════════════════
 
+function showAuthPanel(panel) {
+  ['signin','signup','noaccess'].forEach(p => {
+    const el = document.getElementById(`auth-panel-${p}`);
+    if (el) el.style.display = p === panel ? '' : 'none';
+  });
+}
+
+function setAuthError(panel, msg) {
+  const el = document.getElementById(`auth-error-${panel}`);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.toggle('show', !!msg);
+}
+
+async function signInWithGoogle() {
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) setAuthError('signin', error.message);
+}
+
+async function signInWithEmail() {
+  const email    = document.getElementById('auth-email-signin').value.trim();
+  const password = document.getElementById('auth-password-signin').value;
+  if (!email || !password) { setAuthError('signin', 'Email and password are required.'); return; }
+  setAuthError('signin', '');
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) setAuthError('signin', error.message);
+}
+
+async function signUpWithEmail() {
+  const name     = document.getElementById('auth-name-signup').value.trim();
+  const email    = document.getElementById('auth-email-signup').value.trim();
+  const password = document.getElementById('auth-password-signup').value;
+  if (!name || !email || !password) { setAuthError('signup', 'All fields are required.'); return; }
+  if (password.length < 8) { setAuthError('signup', 'Password must be at least 8 characters.'); return; }
+  setAuthError('signup', '');
+  const { error } = await supabaseClient.auth.signUp({
+    email, password,
+    options: { data: { full_name: name } }
+  });
+  if (error) {
+    setAuthError('signup', error.message);
+  } else {
+    document.getElementById('auth-success-signup').textContent = 'Account created! Check your email to confirm, then sign in.';
+    document.getElementById('auth-success-signup').classList.add('show');
+    document.getElementById('auth-error-signup').classList.remove('show');
+  }
+}
+
+async function signOut() {
+  await supabaseClient.auth.signOut();
+}
+
+async function handleAuthChange(event, session) {
+  if (!session?.user) {
+    currentUser    = null;
+    currentProfile = null;
+    WORKSPACE_ID   = null;
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    showAuthPanel('signin');
+    return;
+  }
+
+  currentUser = session.user;
+
+  // Load profile
+  const { data: profile } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', currentUser.id)
+    .single();
+
+  if (!profile) {
+    // Signed in but not in workspace_invites
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    showAuthPanel('noaccess');
+    return;
+  }
+
+  currentProfile = profile;
+  WORKSPACE_ID   = profile.workspace_id;
+
+  // Update sidebar
+  const initials = profile.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('sidebar-avatar').textContent = initials;
+  document.getElementById('sidebar-name').textContent   = profile.name;
+  document.getElementById('sidebar-role').textContent   = profile.role === 'admin' ? 'Admin · Hillside Stays' : 'Operator · Hillside Stays';
+
+  document.getElementById('auth-overlay').classList.add('hidden');
+  await loadWorkspaceData();
+}
+
+// ════════════════════════════════════════════════════════
+//  HOSPITABLE CONFIG (kept for integration panel)
+// ════════════════════════════════════════════════════════
 const FOLIO_CONFIG = {
-  supabaseUrl:     localStorage.getItem('folio_supabase_url')      || '',
-  supabaseAnonKey: localStorage.getItem('folio_supabase_anon_key') || '',
+  supabaseUrl:     SUPABASE_URL,
+  supabaseAnonKey: SUPABASE_ANON_KEY,
 };
 
 // Derives the proxy base URL from the Supabase project URL
@@ -1827,6 +2285,7 @@ function getProxyBase() {
 // ── Property UUID map: folio internal id → Hospitable property UUID
 // Auto-populated when you run connectHospitable(). Also persisted in localStorage.
 // Format: { 'prop_lbh': 'uuid-from-hospitable', ... }
+const ACCOUNT_ID = 'local_folio'; // kept for Hospitable prop map key only
 let HOSP_PROP_MAP = (() => {
   try { return JSON.parse(localStorage.getItem(`folio_hosp_prop_map_${ACCOUNT_ID}`) || '{}'); } catch { return {}; }
 })();
@@ -2077,26 +2536,11 @@ function enrichPropertyMetrics(props, reservations) {
   }));
 }
 
-// ── Save Supabase URL from integrations panel ─────────────────────────────────
+// ── Supabase config is hardcoded — this just refreshes the status pill ────────
 function saveSupabaseConfig() {
-  const urlInput  = document.getElementById('supabase-url-input');
-  const keyInput  = document.getElementById('supabase-anon-input');
-  const url = (urlInput?.value || '').trim().replace(/\/$/, '');
-  const key = (keyInput?.value || '').trim();
-
-  if (!url.startsWith('https://')) { toast('Project URL must start with https://'); return; }
-  if (!key.startsWith('eyJ'))      { toast('Anon key looks wrong — paste it from Settings → API Keys'); return; }
-
-  FOLIO_CONFIG.supabaseUrl     = url;
-  FOLIO_CONFIG.supabaseAnonKey = key;
-  localStorage.setItem('folio_supabase_url',      url);
-  localStorage.setItem('folio_supabase_anon_key', key);
-
-  // Update status pill
   const pill = document.getElementById('supabase-status-pill');
   if (pill) { pill.textContent = 'Configured'; pill.style.background = 'var(--green-dim)'; pill.style.color = 'var(--green2)'; }
-
-  toast('✓ Supabase config saved — ready to connect');
+  toast('✓ Supabase connected — ' + SUPABASE_URL);
 }
 
 // ── Default seed data (only writes if not already present) ──
@@ -2140,7 +2584,7 @@ const PAGE_CONFIG = {
   maintenance: { title: 'Maintenance',      sub: '— 2 open · 1 urgent',             btn1: 'Assign Vendor',  btn2: '+ Log Issue' },
   crm:         { title: 'Owner CRM',        sub: '— 3 owners · 1 prospect',         btn1: '+ Add Note',     btn2: '+ Add Contact' },
   content:     { title: 'Content Calendar', sub: '— April 2026 · 55 posts',         btn1: 'Export',         btn2: '✦ Generate Month' },
-  knowledge:   { title: 'Knowledge Base',   sub: '— 64 entries',                    btn1: 'Import Docs',    btn2: '+ Add Entry' },
+  knowledge:   { title: 'Knowledge Base',   sub: '— SOPs, vendors & docs',          btn1: 'Search',         btn2: '+ Add Entry' },
   seasonal:    { title: 'Seasonal Planner', sub: '— 2026 demand calendar',          btn1: 'Add Event',      btn2: 'Set Alert' },
   techstack:   { title: 'Tech Stack',       sub: () => { const s = db.get('stack')||[]; const active = s.filter(t=>t.status==='active'); const total = active.reduce((sum,t)=>sum+(parseFloat(t.cost)||0),0); return `— ${s.length} tools · $${total.toFixed(2)}/mo` }, btn1: 'Export', btn2: '+ Add Tool' },
   integrations:{ title: 'Integrations',     sub: '— Connect your stack',            btn1: 'View Logs',      btn2: '↻ Sync All' },
@@ -2163,11 +2607,12 @@ function navigate(key, navEl) {
     document.getElementById('topbar-primary').textContent = cfg.btn2;
   }
   currentPage = key;
-  if (key === 'properties') renderPropertyGrid();
-  if (key === 'tasks') renderTaskPage();
-  if (key === 'dashboard') refreshDashboard();
+  if (key === 'properties')   renderPropertyGrid();
+  if (key === 'tasks')        renderTaskPage();
+  if (key === 'dashboard')    refreshDashboard();
   if (key === 'integrations') renderIntegrationsPage();
-  if (key === 'techstack') renderStackPage();
+  if (key === 'techstack')    renderStackPage();
+  if (key === 'knowledge')    renderKBPage();
 }
 
 function handlePrimaryBtn() {
@@ -2175,6 +2620,7 @@ function handlePrimaryBtn() {
   else if (currentPage === 'properties' || currentPage === 'dashboard') openPropertyModal();
   else if (currentPage === 'tasks') openTaskModal();
   else if (currentPage === 'techstack') openStackModal();
+  else if (currentPage === 'knowledge') openKBAdd();
   else toast(PAGE_CONFIG[currentPage]?.btn2 + ' — coming soon');
 }
 function handleSecondaryBtn() {
@@ -2269,13 +2715,18 @@ function renderTaskPage() {
         const isOverdue = !t.done && t.due && new Date(t.due) < today;
         const propName = t.property ? propMap[t.property] || t.property : 'All Properties';
         const pill = catPill[t.category] || 'pill-ghost';
+        const assigneeHtml = t.assignee ? assigneePill(t.assignee) : '';
         return `<div class="task-full-item" id="task-row-${t.id}">
           <div class="task-priority ${priorityBar[t.priority]||'priority-low'}"></div>
           <div class="task-check${t.done?' done':''}${isOverdue?' overdue':''}" onclick="toggleTask('${t.id}')"></div>
           <div class="task-info">
             <div class="task-title-full${t.done?' done':''}">${t.title}</div>
             <div class="task-sub">${t.category} · ${propName}${t.notes ? ' · ' + t.notes : ''}</div>
-            <div class="task-tags"><span class="pill ${pill}" style="font-size:10px;">${t.category}</span>${isOverdue?'<span class="pill pill-red" style="font-size:10px;">Overdue</span>':''}</div>
+            <div class="task-tags">
+              <span class="pill ${pill}" style="font-size:10px;">${t.category}</span>
+              ${isOverdue?'<span class="pill pill-red" style="font-size:10px;">Overdue</span>':''}
+              ${assigneeHtml}
+            </div>
           </div>
           ${taskDueLabel(t)}
           <div class="task-actions">
@@ -2425,13 +2876,15 @@ function populateTaskPropertyDropdown() {
   const props = db.get('properties') || [];
   const sel = document.getElementById('task-prop');
   sel.innerHTML = '<option value="">All Properties</option>' +
-    props.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    props.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  populateKBPropertyDropdown();
 }
 
 function openTaskModal() {
   populateTaskPropertyDropdown();
-  document.getElementById('task-title').value = '';
-  document.getElementById('task-notes').value = '';
+  document.getElementById('task-title').value    = '';
+  document.getElementById('task-notes').value    = '';
+  document.getElementById('task-assignee').value = '';
   const d = new Date(); d.setDate(d.getDate()+3);
   document.getElementById('task-due').value = d.toISOString().split('T')[0];
   openModal('task-modal');
@@ -2448,6 +2901,7 @@ function saveTask() {
     category: document.getElementById('task-cat').value,
     due: document.getElementById('task-due').value,
     priority: document.getElementById('task-priority').value,
+    assignee: document.getElementById('task-assignee').value,
     notes: document.getElementById('task-notes').value,
     done: false
   };
@@ -3392,9 +3846,213 @@ function deleteTool(id) {
   toast(`${tool?.name || 'Tool'} removed`);
 }
 
-// ────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+//  ASSIGNEE HELPERS
+// ════════════════════════════════════════════════════════
+
+const ASSIGNEES = {
+  dylan:   { label: 'Dylan',   initials: 'DS' },
+  susanna: { label: 'Susanna', initials: 'SC' },
+  tommy:   { label: 'Tommy',   initials: 'TO' }
+};
+
+function assigneePill(key) {
+  const a = ASSIGNEES[key];
+  if (!a) return '';
+  return `<span class="assignee-pill assignee-${key}"><span class="assignee-avatar">${a.initials}</span>${a.label}</span>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  KNOWLEDGE BASE
+// ════════════════════════════════════════════════════════
+
+const KB_CATS = {
+  sop:         { label: 'SOP',        color: '#4A7CC2', icon: '📋' },
+  house_rules: { label: 'House Rules', color: '#4A8C5C', icon: '🏡' },
+  vendor_info: { label: 'Vendor',      color: '#C8A84B', icon: '🔧' },
+  emergency:   { label: 'Emergency',   color: '#C25B5B', icon: '🚨' },
+  general:     { label: 'General',     color: '#9A9990', icon: '📄' }
+};
+
+let kbActiveCat = '';
+
+function setKBCat(btn, cat) {
+  kbActiveCat = cat;
+  document.querySelectorAll('#kb-cat-filters .filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderKBPage();
+}
+
+async function renderKBPage() {
+  if (!WORKSPACE_ID) return;
+  const searchQ   = (document.getElementById('kb-search')?.value || '').toLowerCase().trim();
+  const propFilter = document.getElementById('kb-prop-filter')?.value || '';
+  const container  = document.getElementById('kb-list-container');
+  if (!container) return;
+
+  container.innerHTML = '<div class="kb-empty"><div class="kb-empty-icon">⟳</div><div class="kb-empty-title">Loading...</div></div>';
+
+  let query = supabaseClient.from('kb_entries').select('*')
+    .eq('workspace_id', WORKSPACE_ID)
+    .order('updated_at', { ascending: false });
+
+  if (kbActiveCat) query = query.eq('category', kbActiveCat);
+  if (propFilter)  query = query.eq('property_id', propFilter);
+
+  const { data: entries, error } = await query;
+  if (error) { container.innerHTML = `<div class="kb-empty"><div class="kb-empty-title">Error loading KB</div></div>`; return; }
+
+  const filtered = (entries || []).filter(e => {
+    if (!searchQ) return true;
+    return (e.title || '').toLowerCase().includes(searchQ) ||
+           (e.content || '').toLowerCase().includes(searchQ) ||
+           (e.file_name || '').toLowerCase().includes(searchQ);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="kb-empty">
+      <div class="kb-empty-icon">${kbActiveCat ? KB_CATS[kbActiveCat]?.icon || '📄' : '📚'}</div>
+      <div class="kb-empty-title">${searchQ ? 'No results for "' + searchQ + '"' : 'No entries yet'}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px;">Add your first entry with + Add Entry above</div>
+    </div>`;
+    return;
+  }
+
+  const props = db.get('properties') || [];
+  const propMap = Object.fromEntries(props.map(p => [p.id, p.name]));
+
+  container.innerHTML = filtered.map(e => {
+    const cat  = KB_CATS[e.category] || KB_CATS.general;
+    const prop = e.property_id ? (propMap[e.property_id] || e.property_id) : 'Global';
+    const date = new Date(e.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const fileIcon = e.file_url ? ' 🔗' : '';
+    return `<div class="kb-entry-row" onclick="openKBView('${e.id}')">
+      <div class="kb-entry-cat-dot" style="background:${cat.color};"></div>
+      <div class="kb-entry-title">${escHtml(e.title)}${fileIcon}</div>
+      <span class="pill pill-ghost" style="font-size:10px;flex-shrink:0;">${cat.label}</span>
+      <div class="kb-entry-prop">${escHtml(prop)}</div>
+      <div class="kb-entry-date">${date}</div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function populateKBPropertyDropdown() {
+  const props = db.get('properties') || [];
+  const filterSel = document.getElementById('kb-prop-filter');
+  const modalSel  = document.getElementById('kb-entry-prop');
+  const opts = props.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  if (filterSel) filterSel.innerHTML = '<option value="">All Properties</option>' + opts;
+  if (modalSel)  modalSel.innerHTML  = '<option value="">Global (all properties)</option>' + opts;
+}
+
+function openKBAdd() {
+  document.getElementById('kb-entry-id').value       = '';
+  document.getElementById('kb-entry-title').value    = '';
+  document.getElementById('kb-entry-content').value  = '';
+  document.getElementById('kb-entry-fileurl').value  = '';
+  document.getElementById('kb-entry-filename').value = '';
+  document.getElementById('kb-entry-cat').value      = 'general';
+  document.getElementById('kb-modal-title').textContent = 'Add KB Entry';
+  document.getElementById('kb-modal-delete-btn').innerHTML = '';
+  populateKBPropertyDropdown();
+  openModal('kb-entry-modal');
+}
+
+async function openKBView(id) {
+  const { data: e } = await supabaseClient.from('kb_entries').select('*').eq('id', id).single();
+  if (!e) return;
+
+  const cat  = KB_CATS[e.category] || KB_CATS.general;
+  const props = db.get('properties') || [];
+  const propMap = Object.fromEntries(props.map(p => [p.id, p.name]));
+  const propLabel = e.property_id ? (propMap[e.property_id] || e.property_id) : 'Global';
+  const date = new Date(e.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  document.getElementById('kb-view-title').textContent = e.title;
+  document.getElementById('kb-view-pills').innerHTML =
+    `<span class="pill pill-ghost" style="font-size:10px;">${cat.icon} ${cat.label}</span>` +
+    `<span class="pill pill-ghost" style="font-size:10px;">${escHtml(propLabel)}</span>`;
+  document.getElementById('kb-view-body').textContent = e.content || '(No content)';
+  document.getElementById('kb-view-meta-line').textContent = `Updated ${date}`;
+
+  const fileDiv  = document.getElementById('kb-view-file');
+  const fileName = document.getElementById('kb-view-file-name');
+  const fileLink = document.getElementById('kb-view-file-link');
+  if (e.file_url) {
+    fileName.textContent = e.file_name || 'Attached file';
+    fileLink.href = e.file_url;
+    fileDiv.style.display = '';
+  } else {
+    fileDiv.style.display = 'none';
+  }
+
+  document.getElementById('kb-view-edit-btn').onclick = () => { closeModal('kb-view-modal'); openKBEdit(e); };
+  openModal('kb-view-modal');
+}
+
+function openKBEdit(e) {
+  populateKBPropertyDropdown();
+  document.getElementById('kb-entry-id').value       = e.id;
+  document.getElementById('kb-entry-title').value    = e.title;
+  document.getElementById('kb-entry-content').value  = e.content || '';
+  document.getElementById('kb-entry-fileurl').value  = e.file_url || '';
+  document.getElementById('kb-entry-filename').value = e.file_name || '';
+  document.getElementById('kb-entry-cat').value      = e.category;
+  document.getElementById('kb-entry-prop').value     = e.property_id || '';
+  document.getElementById('kb-modal-title').textContent = 'Edit KB Entry';
+  document.getElementById('kb-modal-delete-btn').innerHTML =
+    `<button class="btn-secondary" style="color:var(--red);border-color:var(--red);" onclick="deleteKBEntry('${e.id}')">Delete</button>`;
+  openModal('kb-entry-modal');
+}
+
+async function saveKBEntry() {
+  const title = document.getElementById('kb-entry-title').value.trim();
+  if (!title) { toast('Title is required'); document.getElementById('kb-entry-title').focus(); return; }
+  if (!WORKSPACE_ID) { toast('Not authenticated'); return; }
+
+  const id = document.getElementById('kb-entry-id').value;
+  const entry = {
+    workspace_id: WORKSPACE_ID,
+    property_id:  document.getElementById('kb-entry-prop').value || null,
+    category:     document.getElementById('kb-entry-cat').value,
+    title,
+    content:      document.getElementById('kb-entry-content').value.trim() || null,
+    file_url:     document.getElementById('kb-entry-fileurl').value.trim() || null,
+    file_name:    document.getElementById('kb-entry-filename').value.trim() || null,
+    created_by:   currentUser.id,
+    updated_at:   new Date().toISOString()
+  };
+
+  let error;
+  if (id) {
+    ({ error } = await supabaseClient.from('kb_entries').update(entry).eq('id', id));
+  } else {
+    ({ error } = await supabaseClient.from('kb_entries').insert(entry));
+  }
+
+  if (error) { toast('Error saving: ' + error.message); return; }
+
+  closeModal('kb-entry-modal');
+  toast(id ? '✓ Entry updated' : '✓ Entry added');
+  renderKBPage();
+}
+
+async function deleteKBEntry(id) {
+  if (!confirm('Delete this KB entry?')) return;
+  const { error } = await supabaseClient.from('kb_entries').delete().eq('id', id);
+  if (error) { toast('Error: ' + error.message); return; }
+  closeModal('kb-entry-modal');
+  toast('Entry deleted');
+  renderKBPage();
+}
+
+// ════════════════════════════════════════════════════════
 //  INIT
-// ────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
 
 (function init() {
   // Seed stack data if not present
@@ -3415,6 +4073,16 @@ function deleteTool(id) {
     if (b) b.remove();
   }
 
+  // Mark Supabase as configured in integrations panel
+  const pill = document.getElementById('supabase-status-pill');
+  if (pill) { pill.textContent = 'Configured'; pill.style.background = 'var(--green-dim)'; pill.style.color = 'var(--green2)'; }
+
+  // Patch KB nav button → openKBAdd
+  const kbPrimaryBtn = document.getElementById('topbar-primary');
+  document.addEventListener('navigate-kb', () => {
+    if (kbPrimaryBtn) kbPrimaryBtn.onclick = openKBAdd;
+  });
+
   // Add demo mode button to topbar
   const topbarRight = document.querySelector('.topbar-right');
   if (topbarRight) {
@@ -3427,6 +4095,14 @@ function deleteTool(id) {
     demoBtn.onclick = () => { if (!DEMO_ACTIVE) enterDemoMode(); else exitDemoMode(); };
     topbarRight.insertBefore(demoBtn, topbarRight.firstChild);
   }
+
+  // ── Wire Supabase auth listener ─────────────────────────
+  supabaseClient.auth.onAuthStateChange(handleAuthChange);
+
+  // Check for existing session immediately
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    handleAuthChange('INITIAL', session);
+  });
 })();
 </script>
 </body>
