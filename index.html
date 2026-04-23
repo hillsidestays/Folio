@@ -1706,19 +1706,6 @@ body.demo-active #auth-overlay { padding-top: 36px; }
           <span class="pill" id="hosp-status-pill" style="font-size:10px;background:var(--amber-dim);color:var(--amber);">Not connected</span>
         </div>
 
-        <!-- PAT input -->
-        <div style="margin-bottom:14px;">
-          <div class="form-label" style="margin-bottom:6px;">Hospitable API Key <span style="color:var(--text3);font-weight:400;">— Settings → API → Personal Access Token</span></div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input class="form-input" id="hosp-pat-input" type="password"
-              placeholder="pat_••••••••••••••••••••••••••••••"
-              style="flex:1;font-family:'Geist Mono',monospace;font-size:12px;"
-              autocomplete="off">
-            <button class="btn-run" id="hosp-save-pat-btn" onclick="saveHospPAT()" style="white-space:nowrap;padding:7px 14px;">Save Key</button>
-          </div>
-          <div id="hosp-pat-status" style="font-size:11px;color:var(--text3);margin-top:6px;min-height:16px;"></div>
-        </div>
-
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;">
           <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Pull all properties · match to Folio records</div>
           <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Sync last 90 days of reservations + financials</div>
@@ -1729,7 +1716,7 @@ body.demo-active #auth-overlay { padding-top: 36px; }
         <div id="hosp-status" style="font-size:12px;color:var(--text3);margin-bottom:10px;min-height:18px;"></div>
         <div id="hosp-log" style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--text3);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;max-height:160px;overflow-y:auto;margin-bottom:12px;display:none;line-height:1.8;"></div>
 
-        <button class="btn-run" id="hosp-connect-btn" onclick="handleConnectHospitable()" style="width:100%;" disabled>
+        <button class="btn-run" id="hosp-connect-btn" onclick="handleConnectHospitable()" style="width:100%;">
           ⟳ Connect Hospitable
         </button>
       </div>
@@ -2758,25 +2745,6 @@ function enrichPropertyMetrics(props, reservations) {
   }));
 }
 
-// ── Save Hospitable PAT to Supabase workspace row ────────────────────────────
-async function saveHospPAT() {
-  const pat = document.getElementById('hosp-pat-input')?.value.trim();
-  const statusEl = document.getElementById('hosp-pat-status');
-  const saveBtn  = document.getElementById('hosp-save-pat-btn');
-  const connectBtn = document.getElementById('hosp-connect-btn');
-  if (!pat) { if (statusEl) statusEl.innerHTML = '<span style="color:var(--red);">Paste your PAT first.</span>'; return; }
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
-  const { error } = await supabaseClient.from('workspaces').update({ hosp_pat: pat }).eq('id', WORKSPACE_ID);
-  if (error) {
-    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red);">✕ ${error.message}</span>`;
-  } else {
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green2);">✓ Key saved — ready to connect</span>';
-    if (connectBtn) connectBtn.disabled = false;
-    document.getElementById('hosp-pat-input').value = '';
-    document.getElementById('hosp-pat-input').placeholder = 'pat_••••••••••••••••• (saved)';
-  }
-  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Key'; }
-}
 
 // ── Default seed data (only writes if not already present) ──
 function seedData() {
@@ -3487,21 +3455,7 @@ function toast(msg) {
 //  INTEGRATIONS PAGE
 // ────────────────────────────────────────────────────────
 
-async function renderIntegrationsPage() {
-  // Check if workspace already has a PAT saved
-  if (WORKSPACE_ID) {
-    const { data: ws } = await supabaseClient.from('workspaces').select('hosp_pat').eq('id', WORKSPACE_ID).single();
-    const hasPat = !!(ws?.hosp_pat);
-    const patStatus = document.getElementById('hosp-pat-status');
-    const connectBtn = document.getElementById('hosp-connect-btn');
-    const patInput = document.getElementById('hosp-pat-input');
-    if (hasPat) {
-      if (patStatus) patStatus.innerHTML = '<span style="color:var(--green2);">✓ API key saved — ready to connect</span>';
-      if (connectBtn) connectBtn.disabled = false;
-      if (patInput) patInput.placeholder = 'pat_••••••••••••••••• (saved)';
-    }
-  }
-
+function renderIntegrationsPage() {
   // Render HOSP_PROP_MAP table
   const mapCard = document.getElementById('prop-map-card');
   const mapTable = document.getElementById('prop-map-table');
