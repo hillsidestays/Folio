@@ -2439,22 +2439,34 @@ async function handleAuthChange(event, session) {
     .single();
 
   if (!profile) {
-    // Trigger hasn't fired yet (common with OAuth) — show spinner and retry
-    document.getElementById('auth-overlay').classList.remove('hidden');
-    showAuthPanel('noaccess');
-    let attempts = 0;
-    const retry = setInterval(async () => {
-      attempts++;
-      const { data: p } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-      if (p) {
-        clearInterval(retry);
-        handleAuthChange(event, session);
-      } else if (attempts >= 10) {
-        clearInterval(retry);
-        document.getElementById('auth-panel-noaccess').querySelector('.auth-no-access-title').textContent = 'Something went wrong';
-        document.getElementById('auth-panel-noaccess').querySelector('.auth-no-access-sub').textContent = 'Profile not created. Ask Dylan to check the Supabase trigger.';
-      }
-    }, 800);
+    // Trigger may have missed (common with OAuth) — create profile client-side
+    const name = currentUser.user_metadata?.full_name ||
+                 currentUser.user_metadata?.name ||
+                 currentUser.email?.split('@')[0] || 'User';
+    const role = currentUser.email?.toLowerCase() === 'smithdj789@gmail.com' ? 'admin' : 'operator';
+
+    const { data: newProfile, error: insertErr } = await supabaseClient
+      .from('profiles')
+      .insert({ id: currentUser.id, workspace_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', name, role })
+      .select()
+      .single();
+
+    if (insertErr || !newProfile) {
+      // Still failed — show message
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      showAuthPanel('noaccess');
+      document.getElementById('auth-panel-noaccess').querySelector('.auth-no-access-title').textContent = 'Setup error';
+      document.getElementById('auth-panel-noaccess').querySelector('.auth-no-access-sub').textContent = insertErr?.message || 'Could not create profile. Try signing in with email instead.';
+      return;
+    }
+    currentProfile = newProfile;
+    WORKSPACE_ID   = newProfile.workspace_id;
+    const initials = newProfile.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('sidebar-avatar').textContent = initials;
+    document.getElementById('sidebar-name').textContent   = newProfile.name;
+    document.getElementById('sidebar-role').textContent   = newProfile.role === 'admin' ? 'Admin · Hillside Stays' : 'Operator · Hillside Stays';
+    document.getElementById('auth-overlay').classList.add('hidden');
+    await loadWorkspaceData();
     return;
   }
 
