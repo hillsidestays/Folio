@@ -2327,15 +2327,22 @@ async function syncEntity(entity, data) {
   }
   if (!currentUser || !WORKSPACE_ID) return;
   if (entity === 'properties') {
-    const rows = (data||[]).map(p => ({ ...p, workspace_id: WORKSPACE_ID }));
+    const PROP_COLS = ['id','name','city','type','bedrooms','bathrooms','guests','airbnb','direct','notes','occupancy','adr','rating','status','emoji','hosp_id','picture'];
+    const rows = (data||[]).map(p => {
+      const row = { workspace_id: WORKSPACE_ID };
+      PROP_COLS.forEach(col => { row[col] = p[col] ?? null; });
+      row.hosp_id = p.hosp_id || p.hospId || null;
+      return row;
+    });
     if (rows.length) await supabaseClient.from('properties').upsert(rows, { onConflict: 'id' });
   } else if (entity === 'tasks') {
-    const rows = (data||[]).map(t => ({
-      ...t,
-      workspace_id: WORKSPACE_ID,
-      property_id: t.property || t.property_id || null,
-      due: t.due || null
-    }));
+    const TASK_COLS = ['id','title','category','due','priority','done','notes','assignee'];
+    const rows = (data||[]).map(t => {
+      const row = { workspace_id: WORKSPACE_ID, property_id: t.property || t.property_id || null };
+      TASK_COLS.forEach(col => { row[col] = t[col] ?? null; });
+      row.due = t.due || null;
+      return row;
+    });
     if (rows.length) await supabaseClient.from('tasks').upsert(rows, { onConflict: 'id' });
   }
 }
