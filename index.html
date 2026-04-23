@@ -2562,26 +2562,28 @@ async function hospFetchAll(path, params = {}, arrayParams = {}) {
   return all;
 }
 
-// ── Fetch reservations — full date window + all pages ────────────────────────
+// ── Fetch reservations — full date window, all pages, reviews embedded ────────
 async function fetchHospitableReservations(hospPropertyIds = []) {
   const fmt   = d => d.toISOString().slice(0, 10);
   const start = new Date(); start.setFullYear(start.getFullYear() - 1);
   const end   = new Date(); end.setFullYear(end.getFullYear() + 1);
   const params = { start_date: fmt(start), end_date: fmt(end) };
-  const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
+  const arrayParams = {
+    ...(hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {}),
+    'include[]': ['reviews'],
+  };
   return hospFetchAll('/reservations', params, arrayParams);
 }
 
-// ── Fetch reviews — per-property, all pages ───────────────────────────────────
-async function fetchHospitableReviews(hospPropertyIds = []) {
-  const all = [];
-  for (const id of hospPropertyIds) {
-    try {
-      const reviews = await hospFetchAll(`/properties/${id}/reviews`);
-      all.push(...reviews.map(r => ({ ...r, propertyId: id })));
-    } catch {}
-  }
-  return all;
+// ── Extract reviews embedded in reservation objects ───────────────────────────
+function extractReviewsFromReservations(rawReservations) {
+  return rawReservations
+    .filter(r => r.review)
+    .map(r => ({
+      ...r.review,
+      propertyId:    r.property?.id || r.property_id,
+      reservationId: r.id,
+    }));
 }
 
 // ── Map Hospitable property → Folio property schema ──────────────────────────
@@ -2726,15 +2728,10 @@ async function connectHospitable() {
       log(`Reservations fetch failed: ${err.message}`, 'warn');
     }
 
-    // 4. Fetch reviews
-    log('Fetching reviews…');
-    try {
-      const rawRev = await fetchHospitableReviews(hospIds);
-      db.set('reviews', rawRev);
-      log(`Synced ${rawRev.length} review${rawRev.length === 1 ? '' : 's'}`, 'ok');
-    } catch (err) {
-      log(`Reviews fetch failed: ${err.message}`, 'warn');
-    }
+    // 4. Extract reviews embedded in reservations (include[]=reviews)
+    const rawRev = extractReviewsFromReservations(rawRes);
+    db.set('reviews', rawRev);
+    log(`Extracted ${rawRev.length} review${rawRev.length === 1 ? '' : 's'} from reservations`, rawRev.length > 0 ? 'ok' : 'info');
 
     // 5. Update UI
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--green2);">✓ Connected · ${rawProps.length} properties · last sync ${new Date().toLocaleTimeString()}</span>`;
