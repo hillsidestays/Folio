@@ -2724,14 +2724,14 @@ async function connectHospitable() {
       db.set('reservations', mappedRes);
       log(`Synced ${mappedRes.length} reservation${mappedRes.length === 1 ? '' : 's'}`, 'ok');
       enrichPropertyMetrics(mappedProps, mappedRes);
+
+      // 4. Extract reviews embedded in reservations via include[]=reviews
+      const rawRev = extractReviewsFromReservations(rawRes);
+      db.set('reviews', rawRev);
+      log(`Extracted ${rawRev.length} review${rawRev.length === 1 ? '' : 's'} from reservations`, rawRev.length > 0 ? 'ok' : 'info');
     } catch (err) {
       log(`Reservations fetch failed: ${err.message}`, 'warn');
     }
-
-    // 4. Extract reviews embedded in reservations (include[]=reviews)
-    const rawRev = extractReviewsFromReservations(rawRes);
-    db.set('reviews', rawRev);
-    log(`Extracted ${rawRev.length} review${rawRev.length === 1 ? '' : 's'} from reservations`, rawRev.length > 0 ? 'ok' : 'info');
 
     // 5. Update UI
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--green2);">✓ Connected · ${rawProps.length} properties · last sync ${new Date().toLocaleTimeString()}</span>`;
