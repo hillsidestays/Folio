@@ -2546,24 +2546,38 @@ async function fetchHospitableProperties() {
   return data.data || data.properties || (Array.isArray(data) ? data : []);
 }
 
-// ── Fetch reservations — pass property UUIDs + explicit 90-day date range ────
-async function fetchHospitableReservations(hospPropertyIds = []) {
-  const end   = new Date();
-  const start = new Date(); start.setDate(start.getDate() - 90);
-  const fmt   = d => d.toISOString().slice(0, 10);
-  const params = { start_date: fmt(start), end_date: fmt(end) };
-  const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
-  const data = await hospFetch('/reservations', params, arrayParams);
-  return data.data || data.reservations || (Array.isArray(data) ? data : []);
+// ── Fetch all pages from a Hospitable endpoint ───────────────────────────────
+async function hospFetchAll(path, params = {}, arrayParams = {}) {
+  const all = [];
+  let page = 1;
+  while (true) {
+    const data = await hospFetch(path, { ...params, page, per_page: 100 }, arrayParams);
+    const rows = data.data || data.reservations || data.reviews || (Array.isArray(data) ? data : []);
+    all.push(...rows);
+    const meta = data.meta || data.pagination || {};
+    const lastPage = meta.last_page || meta.total_pages || 1;
+    if (page >= lastPage || rows.length === 0) break;
+    page++;
+  }
+  return all;
 }
 
-// ── Fetch reviews — v2 reviews are per-property: /properties/{id}/reviews ────
+// ── Fetch reservations — full date window + all pages ────────────────────────
+async function fetchHospitableReservations(hospPropertyIds = []) {
+  const fmt   = d => d.toISOString().slice(0, 10);
+  const start = new Date(); start.setFullYear(start.getFullYear() - 1);
+  const end   = new Date(); end.setFullYear(end.getFullYear() + 1);
+  const params = { start_date: fmt(start), end_date: fmt(end) };
+  const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
+  return hospFetchAll('/reservations', params, arrayParams);
+}
+
+// ── Fetch reviews — per-property, all pages ───────────────────────────────────
 async function fetchHospitableReviews(hospPropertyIds = []) {
   const all = [];
   for (const id of hospPropertyIds) {
     try {
-      const data = await hospFetch(`/properties/${id}/reviews`);
-      const reviews = data.data || data.reviews || (Array.isArray(data) ? data : []);
+      const reviews = await hospFetchAll(`/properties/${id}/reviews`);
       all.push(...reviews.map(r => ({ ...r, propertyId: id })));
     } catch {}
   }
