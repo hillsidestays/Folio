@@ -711,6 +711,7 @@ body.demo-active .main .topbar { top: 0; }
 .auth-error.show { display: block; }
 .auth-success { background: var(--green-dim); border: 1px solid var(--green); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 12px; color: var(--green2); margin-bottom: 14px; display: none; }
 .auth-success.show { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .auth-no-access { text-align: center; padding: 20px 0; }
 .auth-no-access-icon { font-size: 36px; margin-bottom: 14px; }
 .auth-no-access-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
@@ -843,7 +844,7 @@ body.demo-active .main .topbar { top: 0; }
     <!-- Sign-up panel -->
     <div id="auth-panel-signup" style="display:none;">
       <div class="auth-title">Create your account</div>
-      <div class="auth-sub">Your email must be on the approved list</div>
+      <div class="auth-sub">Join the Hillside Stays workspace</div>
       <div class="auth-error" id="auth-error-signup"></div>
       <div class="auth-success" id="auth-success-signup"></div>
       <button class="auth-google-btn" onclick="signInWithGoogle()">
@@ -878,15 +879,12 @@ body.demo-active .main .topbar { top: 0; }
       <div class="auth-switch">Already have an account? <a onclick="showAuthPanel('signin')">Sign in</a></div>
     </div>
 
-    <!-- No access panel -->
+    <!-- No access panel (shown briefly while profile is being created by trigger) -->
     <div id="auth-panel-noaccess" style="display:none;">
       <div class="auth-no-access">
-        <div class="auth-no-access-icon">🔒</div>
-        <div class="auth-no-access-title">Not on the list</div>
-        <div class="auth-no-access-sub">Your email isn't approved for this workspace yet.<br>Ask Dylan to add you in Supabase → workspace_invites.</div>
-        <div style="margin-top:20px;">
-          <button class="btn-secondary" onclick="supabaseClient.auth.signOut()">Use a different account</button>
-        </div>
+        <div class="auth-no-access-icon" style="font-size:28px;animation:spin 1s linear infinite;display:inline-block;">⟳</div>
+        <div class="auth-no-access-title" style="margin-top:12px;">Setting up your account…</div>
+        <div class="auth-no-access-sub">This takes just a second.</div>
       </div>
     </div>
   </div>
@@ -2118,7 +2116,7 @@ body.demo-active .main .topbar { top: 0; }
 // ════════════════════════════════════════════════════════
 
 const SUPABASE_URL      = 'https://derybgfiwxeebwmcobht.supabase.co';
-const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_ANON_KEY'; // Settings → API → anon/public
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlcnliZ2Zpd3hlZWJ3bWNvYmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDkyNzgsImV4cCI6MjA4OTUyNTI3OH0.80Faxh1TYiG_PT_rnerwFN_dhPpUx9Det0EDTsvaqM0';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
@@ -2249,9 +2247,22 @@ async function handleAuthChange(event, session) {
     .single();
 
   if (!profile) {
-    // Signed in but not in workspace_invites
+    // Trigger hasn't fired yet (common with OAuth) — show spinner and retry
     document.getElementById('auth-overlay').classList.remove('hidden');
     showAuthPanel('noaccess');
+    let attempts = 0;
+    const retry = setInterval(async () => {
+      attempts++;
+      const { data: p } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+      if (p) {
+        clearInterval(retry);
+        handleAuthChange(event, session);
+      } else if (attempts >= 10) {
+        clearInterval(retry);
+        document.getElementById('auth-panel-noaccess').querySelector('.auth-no-access-title').textContent = 'Something went wrong';
+        document.getElementById('auth-panel-noaccess').querySelector('.auth-no-access-sub').textContent = 'Profile not created. Ask Dylan to check the Supabase trigger.';
+      }
+    }, 800);
     return;
   }
 
