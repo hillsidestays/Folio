@@ -2726,6 +2726,7 @@ async function connectHospitable() {
       enrichPropertyMetrics(mappedProps, mappedRes);
 
       // 4. Extract reviews embedded in reservations via include[]=reviews
+      if (rawRes.length > 0) console.log('[Hospitable] sample reservation keys:', Object.keys(rawRes[0]), rawRes[0]);
       const rawRev = extractReviewsFromReservations(rawRes);
       db.set('reviews', rawRev);
       log(`Extracted ${rawRev.length} review${rawRev.length === 1 ? '' : 's'} from reservations`, rawRev.length > 0 ? 'ok' : 'info');
