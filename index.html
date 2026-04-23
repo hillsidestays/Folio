@@ -2607,7 +2607,7 @@ function mapHospReservation(r) {
     guests:       r.number_of_guests || r.guests_count || r.guests,
     status:       r.status,
     channel:      r.source || r.channel || r.platform,
-    totalRevenue: r.money?.host_payout || r.host_payout || r.total_price,
+    totalRevenue: r.money?.host_payout ?? r.money?.total ?? r.host_payout ?? r.total_price ?? r.amount ?? null,
     nightlyRate:  r.money?.nightly_price || r.nightly_price,
     cleaningFee:  r.money?.cleaning_fee || r.cleaning_fee,
     otaFee:       r.money?.guest_service_fee || r.guest_service_fee,
@@ -3168,13 +3168,14 @@ function calcRevenueStats() {
 }
 
 function renderRevenuePage() {
+  const reservations = db.get('reservations') || [];
   const rs   = calcRevenueStats();
   const fmt$ = n => '$' + Math.round(n).toLocaleString();
   const container = document.getElementById('revenue-content');
   if (!container) return;
 
-  if (!rs.ytdRevenue && !rs.mtdRevenue) {
-    container.innerHTML = `<div class="empty-state" style="padding:60px;"><div class="empty-icon">$</div><div class="empty-title">Connect Hospitable to see real revenue data</div><div class="empty-sub">Go to Integrations → Connect Hospitable</div></div>`;
+  if (!reservations.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:60px;"><div class="empty-icon">$</div><div class="empty-title">Connect Hospitable to see real revenue data</div><div class="empty-sub">Go to Integrations → Connect Hospitable, then click Sync Now</div></div>`;
     return;
   }
 
