@@ -1,82 +1,99 @@
 // Supabase Edge Function: hospitable-proxy
-// Deploy: Supabase Dashboard → Edge Functions → New Function → name: "hospitable-proxy" → paste this code
-//
-// This function:
-//   1. Verifies the caller's Supabase JWT
-//   2. Looks up their workspace's saved Hospitable PAT
-//   3. Proxies the request to api.hospitable.com
-//   4. Returns the response (handles CORS for browser requests)
+// Paste this into: Supabase Dashboard → Edge Functions → hospitable-proxy → Edit → Deploy
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
 }
 
+const ALLOWED_PREFIXES = [
+  '/properties',
+  '/reservations',
+  '/reviews',
+  '/conversations',
+  '/listings',
+  '/customers/me/properties',
+  '/customers/me/reservations',
+  '/customers/me/reviews',
+]
+
+const HOSPITABLE_BASE = 'https://public.api.hospitable.com/v2'
+
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
+  if (req.method !== 'GET') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...CORS, 'Content-Type': 'application/json' }
+    })
+  }
 
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) throw new Error('No authorization header')
 
-    // Use service role to look up workspace PAT (bypasses RLS safely)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Verify the caller's JWT → get their user id
+    // Verify caller's JWT → get their user id
     const { data: { user }, error: authErr } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
     if (authErr || !user) throw new Error('Unauthorized')
 
     // Look up their workspace
-    const { data: profile, error: profErr } = await supabase
-      .from('profiles')
-      .select('workspace_id')
-      .eq('id', user.id)
-      .single()
-    if (profErr || !profile) throw new Error('Profile not found')
+    const { data: profile } = await supabase
+      .from('profiles').select('workspace_id').eq('id', user.id).single()
+    if (!profile) throw new Error('Profile not found')
 
-    // Fetch the PAT stored for this workspace
-    const { data: workspace, error: wsErr } = await supabase
-      .from('workspaces')
-      .select('hosp_pat')
-      .eq('id', profile.workspace_id)
-      .single()
-    if (wsErr || !workspace?.hosp_pat) throw new Error('Hospitable API key not configured — paste your PAT on the Integrations page first')
+    // PAT: prefer per-workspace key stored in DB, fall back to env secret
+    const { data: workspace } = await supabase
+      .from('workspaces').select('hosp_pat').eq('id', profile.workspace_id).single()
+    const pat = workspace?.hosp_pat || Deno.env.get('HOSPITABLE_PAT')
+    if (!pat) throw new Error('Hospitable API key not configured — paste your PAT on the Integrations page')
 
-    // Forward request to Hospitable API
-    const reqUrl = new URL(req.url)
-    const path   = reqUrl.searchParams.get('path') || '/properties'
-    const fwdParams = new URLSearchParams()
-    for (const [k, v] of reqUrl.searchParams.entries()) {
-      if (k !== 'path') fwdParams.set(k, v)
+    // Validate path
+    const reqUrl  = new URL(req.url)
+    const path    = reqUrl.searchParams.get('path') || '/properties'
+    const allowed = ALLOWED_PREFIXES.some(p => path.startsWith(p))
+    if (!allowed) throw new Error('Path not allowed: ' + path)
+
+    // Build query string — preserve bracket notation for array params
+    const parts: string[] = []
+    for (const [key, value] of reqUrl.searchParams.entries()) {
+      if (key === 'path') continue
+      const encodedKey = encodeURIComponent(key)
+        .replace(/%5B/gi, '[').replace(/%5D/gi, ']').replace(/%2C/gi, ',')
+      parts.push(`${encodedKey}=${encodeURIComponent(value)}`)
     }
+    const qs        = parts.join('&')
+    const targetUrl = HOSPITABLE_BASE + path + (qs ? '?' + qs : '')
 
-    const hospUrl = `https://api.hospitable.com/v1${path}${fwdParams.toString() ? '?' + fwdParams : ''}`
-    const hospRes = await fetch(hospUrl, {
+    console.log('[hospitable-proxy] ->', targetUrl)
+
+    const hospRes = await fetch(targetUrl, {
       headers: {
-        'Authorization': `Bearer ${workspace.hosp_pat}`,
+        'Authorization': `Bearer ${pat}`,
         'Content-Type':  'application/json',
         'Accept':        'application/json',
       }
     })
 
     const body = await hospRes.text()
+    console.log('[hospitable-proxy] status:', hospRes.status)
+
     return new Response(body, {
       status:  hospRes.status,
-      headers: { ...CORS, 'Content-Type': 'application/json' },
+      headers: { ...CORS, 'Content-Type': hospRes.headers.get('Content-Type') || 'application/json' }
     })
 
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), {
-      status:  400,
-      headers: { ...CORS, 'Content-Type': 'application/json' },
+      status: 400, headers: { ...CORS, 'Content-Type': 'application/json' }
     })
   }
 })

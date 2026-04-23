@@ -1706,6 +1706,16 @@ body.demo-active #auth-overlay { padding-top: 36px; }
           <span class="pill" id="hosp-status-pill" style="font-size:10px;background:var(--amber-dim);color:var(--amber);">Not connected</span>
         </div>
 
+        <!-- API key input — each workspace saves their own PAT -->
+        <div style="margin-bottom:16px;">
+          <div class="form-label" style="margin-bottom:6px;">Hospitable API Key <span style="color:var(--text3);font-weight:400;">— Settings → API → Personal Access Token</span></div>
+          <div style="display:flex;gap:8px;">
+            <input class="form-input" id="hosp-pat-input" type="password" placeholder="Paste your PAT here…" style="flex:1;font-family:'Geist Mono',monospace;font-size:12px;" autocomplete="off">
+            <button class="btn-run" onclick="saveHospPAT()" style="white-space:nowrap;padding:7px 14px;">Save Key</button>
+          </div>
+          <div id="hosp-pat-status" style="font-size:11px;margin-top:6px;min-height:16px;color:var(--text3);"></div>
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;">
           <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Pull all properties · match to Folio records</div>
           <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);padding:7px 10px;background:var(--bg3);border-radius:6px;"><span style="color:var(--green2);">✓</span> Sync last 90 days of reservations + financials</div>
@@ -2502,17 +2512,20 @@ function saveHospPropMap() {
 }
 
 // ── Core proxy fetch ──────────────────────────────────────────────────────────
-async function hospFetch(path, params = {}) {
+// arrayParams: { 'properties[]': ['uuid1','uuid2'] } → appended as repeated params
+async function hospFetch(path, params = {}, arrayParams = {}) {
   const base = getProxyBase();
   if (!base) throw new Error('Proxy URL unavailable.');
 
-  // Get the user's current session token to authenticate with the Edge Function
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) throw new Error('Not authenticated.');
 
   const url = new URL(base);
   url.searchParams.set('path', path);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  for (const [k, vals] of Object.entries(arrayParams)) {
+    (Array.isArray(vals) ? vals : [vals]).forEach(v => url.searchParams.append(k, v));
+  }
 
   const res = await fetch(url.toString(), {
     headers: {
@@ -2530,20 +2543,21 @@ async function hospFetch(path, params = {}) {
 // ── Fetch all properties from Hospitable ─────────────────────────────────────
 async function fetchHospitableProperties() {
   const data = await hospFetch('/properties');
-  // Hospitable returns { data: [...] } or { properties: [...] } depending on version
-  return data.data || data.properties || data || [];
+  return data.data || data.properties || (Array.isArray(data) ? data : []);
 }
 
-// ── Fetch reservations (with financials) ─────────────────────────────────────
-async function fetchHospitableReservations(params = {}) {
-  const data = await hospFetch('/reservations', { limit: 50, ...params });
-  return data.data || data.reservations || data || [];
+// ── Fetch reservations — requires property UUIDs (Hospitable v2 requirement) ──
+async function fetchHospitableReservations(hospPropertyIds = []) {
+  const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
+  const data = await hospFetch('/reservations', {}, arrayParams);
+  return data.data || data.reservations || (Array.isArray(data) ? data : []);
 }
 
 // ── Fetch reviews ─────────────────────────────────────────────────────────────
-async function fetchHospitableReviews(params = {}) {
-  const data = await hospFetch('/reviews', params);
-  return data.data || data.reviews || data || [];
+async function fetchHospitableReviews(hospPropertyIds = []) {
+  const arrayParams = hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {};
+  const data = await hospFetch('/customers/me/reviews', {}, arrayParams);
+  return data.data || data.reviews || (Array.isArray(data) ? data : []);
 }
 
 // ── Map Hospitable property → Folio property schema ──────────────────────────
@@ -2674,15 +2688,14 @@ async function connectHospitable() {
     saveHospPropMap();
     log(`HOSP_PROP_MAP updated with ${Object.keys(newMap).length} entr${Object.keys(newMap).length === 1 ? 'y' : 'ies'}`, 'ok');
 
-    // 3. Fetch reservations
+    // 3. Fetch reservations — pass Hospitable property UUIDs (v2 requires it)
+    const hospIds = rawProps.map(p => p.id);
     log('Fetching reservations…');
     try {
-      const rawRes = await fetchHospitableReservations();
+      const rawRes = await fetchHospitableReservations(hospIds);
       const mappedRes = rawRes.map(mapHospReservation);
       db.set('reservations', mappedRes);
       log(`Synced ${mappedRes.length} reservation${mappedRes.length === 1 ? '' : 's'}`, 'ok');
-
-      // Derive live ADR and occupancy from recent reservations
       enrichPropertyMetrics(mappedProps, mappedRes);
     } catch (err) {
       log(`Reservations fetch failed: ${err.message}`, 'warn');
@@ -2691,7 +2704,7 @@ async function connectHospitable() {
     // 4. Fetch reviews
     log('Fetching reviews…');
     try {
-      const rawRev = await fetchHospitableReviews();
+      const rawRev = await fetchHospitableReviews(hospIds);
       db.set('reviews', rawRev);
       log(`Synced ${rawRev.length} review${rawRev.length === 1 ? '' : 's'}`, 'ok');
     } catch (err) {
@@ -2745,6 +2758,21 @@ function enrichPropertyMetrics(props, reservations) {
   }));
 }
 
+
+// ── Save Hospitable PAT to workspace row in Supabase ─────────────────────────
+async function saveHospPAT() {
+  const pat = document.getElementById('hosp-pat-input')?.value.trim();
+  const statusEl = document.getElementById('hosp-pat-status');
+  if (!pat) { if (statusEl) statusEl.innerHTML = '<span style="color:var(--red);">Paste your PAT first.</span>'; return; }
+  const { error } = await supabaseClient.from('workspaces').update({ hosp_pat: pat }).eq('id', WORKSPACE_ID);
+  if (error) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red);">✕ ${error.message}</span>`;
+  } else {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green2);">✓ Key saved — click Connect to sync</span>';
+    document.getElementById('hosp-pat-input').value = '';
+    document.getElementById('hosp-pat-input').placeholder = 'pat_••••••••• (saved)';
+  }
+}
 
 // ── Default seed data (only writes if not already present) ──
 function seedData() {
@@ -3455,7 +3483,18 @@ function toast(msg) {
 //  INTEGRATIONS PAGE
 // ────────────────────────────────────────────────────────
 
-function renderIntegrationsPage() {
+async function renderIntegrationsPage() {
+  // Show saved key status
+  if (WORKSPACE_ID) {
+    const { data: ws } = await supabaseClient.from('workspaces').select('hosp_pat').eq('id', WORKSPACE_ID).single();
+    if (ws?.hosp_pat) {
+      const el = document.getElementById('hosp-pat-status');
+      const inp = document.getElementById('hosp-pat-input');
+      if (el) el.innerHTML = '<span style="color:var(--green2);">✓ Key saved — click Connect to sync</span>';
+      if (inp) inp.placeholder = 'pat_••••••••• (saved)';
+    }
+  }
+
   // Render HOSP_PROP_MAP table
   const mapCard = document.getElementById('prop-map-card');
   const mapTable = document.getElementById('prop-map-table');
