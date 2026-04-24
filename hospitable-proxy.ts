@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     // PAT: prefer per-workspace key stored in DB, fall back to env secret
     const { data: workspace } = await supabase
       .from('workspaces').select('hosp_pat').eq('id', profile.workspace_id).single()
-    const pat = workspace?.hosp_pat || Deno.env.get('HOSPITABLE_PAT')
+    const pat = (workspace?.hosp_pat || Deno.env.get('HOSPITABLE_PAT') || '').trim()
     if (!pat) throw new Error('Hospitable API key not configured — paste your PAT on the Integrations page')
 
     // Validate path

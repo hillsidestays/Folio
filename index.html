@@ -383,9 +383,9 @@ body {
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; display: flex; }
 .bar-fill { height: 100%; border-radius: 4px; background: var(--green2); opacity: 0.75; transition: width 0.5s ease; }
 .bar-fill.present { background: var(--gold2); opacity: 1; }
-.bar-fill.projected { background: #E8A050; opacity: 0.5; border: 1px dashed #E8A050; box-sizing: border-box; border-radius: 4px; }
+.bar-fill.projected { background: transparent; opacity: 1; border: 1px dashed var(--text3); box-sizing: border-box; border-radius: 4px; }
 .bar-seg-airbnb { background: var(--red); opacity: 0.85; border-radius: 4px; }
-.bar-seg-direct  { background: #3A6FBF; opacity: 0.85; border-radius: 4px; }
+.bar-seg-direct  { background: var(--green2); opacity: 0.85; border-radius: 4px; }
 .bar-seg-other   { background: var(--text3); opacity: 0.6; border-radius: 4px; }
 .rev-stat-btn { cursor: pointer; transition: background 0.15s; border-radius: 8px; padding: 2px; margin: -2px; }
 .rev-stat-btn:hover { background: rgba(255,255,255,0.04); }
@@ -3280,8 +3280,8 @@ function renderRevenuePage() {
       <div class="card-body" style="padding:22px 24px;">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;">
           <div class="rev-stat-btn" onclick="toggleRevDetail('gross')" id="revbtn-gross" style="padding-right:24px;border-right:1px solid var(--border);">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${now.getFullYear()} Gross Bookings</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:#7AAFD4;line-height:1;">${fmt$(rs.ytdGross)}</div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">YTD Gross Bookings</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--green2);line-height:1;">${fmt$(rs.ytdGross)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px;">what guests paid ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('fees')" id="revbtn-fees" style="padding:0 24px;border-right:1px solid var(--border);">
@@ -3306,8 +3306,8 @@ function renderRevenuePage() {
             <div style="width:${feesPct}%;background:var(--red);opacity:0.45;border-radius:0 4px 4px 0;"></div>
           </div>
           <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:var(--text3);">
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--border2);display:inline-block;"></span>Net to you (${netPct}%)</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--text3);display:inline-block;"></span>Fees &amp; taxes (${feesPct}%)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green2);opacity:0.85;display:inline-block;"></span>Net to you (${netPct}%)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);opacity:0.75;display:inline-block;"></span>Fees &amp; taxes (${feesPct}%)</span>
           </div>
         </div>
       </div>
@@ -3335,7 +3335,7 @@ function renderRevenuePage() {
           <div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);">
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green2);display:inline-block;"></span>Past</span>
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);display:inline-block;"></span>This month</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#E8A050;opacity:0.6;border:1px dashed #E8A050;display:inline-block;"></span>Projected</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:transparent;border:1px dashed var(--text3);display:inline-block;"></span>Projected</span>
           </div>
         </div>
         <div class="rev-bars">
