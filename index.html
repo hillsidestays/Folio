@@ -382,8 +382,8 @@ body {
 .bar-label { font-size: 11px; color: var(--text2); width: 80px; flex-shrink: 0; text-align: right; }
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; display: flex; }
 .bar-fill { height: 100%; border-radius: 4px; background: var(--green2); opacity: 0.75; transition: width 0.5s ease; }
-.bar-fill.present { background: var(--gold2); opacity: 1; }
-.bar-fill.projected { background: transparent; opacity: 1; border: 1px dashed var(--text3); box-sizing: border-box; border-radius: 4px; }
+.bar-fill.present { background: #E8904A; opacity: 1; }
+.bar-fill.projected { background: var(--gold2); opacity: 0.55; border-radius: 4px; }
 .bar-seg-airbnb { background: var(--red); opacity: 0.85; border-radius: 4px; }
 .bar-seg-direct  { background: var(--green2); opacity: 0.85; border-radius: 4px; }
 .bar-seg-other   { background: var(--text3); opacity: 0.6; border-radius: 4px; }
@@ -2285,19 +2285,24 @@ async function syncEntity(entity, data) {
     if (rows.length) await supabaseClient.from('tasks').upsert(rows, { onConflict: 'id' });
   } else if (entity === 'reservations') {
     const rows = (data||[]).map(r => ({
-      id:            r.id,
-      workspace_id:  WORKSPACE_ID,
-      property_id:   r.propertyId || r.property_id || null,
-      guest_name:    r.guestName  || r.guest_name  || null,
-      check_in:      r.checkIn    || r.check_in    || null,
-      check_out:     r.checkOut   || r.check_out   || null,
-      nights:        parseInt(r.nights)        || null,
-      guests:        parseInt(r.guests)        || null,
-      status:        r.status   || null,
-      channel:       r.channel  || null,
-      total_revenue: parseFloat(r.totalRevenue || r.total_revenue) || null,
-      nightly_rate:  parseFloat(r.nightlyRate  || r.nightly_rate)  || null,
-      cleaning_fee:  parseFloat(r.cleaningFee  || r.cleaning_fee)  || null,
+      id:               r.id,
+      workspace_id:     WORKSPACE_ID,
+      property_id:      r.propertyId      || r.property_id      || null,
+      guest_name:       r.guestName       || r.guest_name       || null,
+      check_in:         r.checkIn         || r.check_in         || null,
+      check_out:        r.checkOut        || r.check_out        || null,
+      nights:           parseInt(r.nights)                      || null,
+      guests:           parseInt(r.guests)                      || null,
+      status:           r.status                                || null,
+      channel:          r.channel                               || null,
+      total_revenue:    parseFloat(r.totalRevenue    || r.total_revenue)    || null,
+      gross_revenue:    parseFloat(r.grossRevenue    || r.gross_revenue)    || null,
+      nightly_rate:     parseFloat(r.nightlyRate     || r.nightly_rate)     || null,
+      cleaning_fee:     parseFloat(r.cleaningFee     || r.cleaning_fee)     || null,
+      host_service_fee: parseFloat(r.hostServiceFee  || r.host_service_fee) || null,
+      taxes:            parseFloat(r.taxes)                                 || null,
+      discounts:        parseFloat(r.discounts)                             || null,
+      accommodation:    parseFloat(r.accommodation)                         || null,
     })).filter(r => r.id);
     if (rows.length) await supabaseClient.from('reservations').upsert(rows, { onConflict: 'id' });
   }
@@ -2317,13 +2322,18 @@ async function loadWorkspaceData() {
   if (resRes.data?.length) {
     cache['reservations'] = resRes.data.map(r => ({
       ...r,
-      propertyId:   r.property_id,
-      guestName:    r.guest_name,
-      checkIn:      r.check_in,
-      checkOut:     r.check_out,
-      totalRevenue: r.total_revenue,
-      nightlyRate:  r.nightly_rate,
-      cleaningFee:  r.cleaning_fee,
+      propertyId:     r.property_id,
+      guestName:      r.guest_name,
+      checkIn:        r.check_in,
+      checkOut:       r.check_out,
+      totalRevenue:   r.total_revenue,
+      grossRevenue:   r.gross_revenue,
+      nightlyRate:    r.nightly_rate,
+      cleaningFee:    r.cleaning_fee,
+      hostServiceFee: r.host_service_fee,
+      taxes:          r.taxes,
+      discounts:      r.discounts,
+      accommodation:  r.accommodation,
     }));
   }
   seedData();
@@ -3334,8 +3344,8 @@ function renderRevenuePage() {
           <div class="card-title">Monthly Revenue</div>
           <div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);">
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green2);display:inline-block;"></span>Past</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);display:inline-block;"></span>This month</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:transparent;border:1px dashed var(--text3);display:inline-block;"></span>Projected</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#E8904A;display:inline-block;"></span>This month</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);opacity:0.55;display:inline-block;"></span>Projected</span>
           </div>
         </div>
         <div class="rev-bars">
