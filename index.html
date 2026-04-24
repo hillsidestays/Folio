@@ -3301,12 +3301,12 @@ function renderRevenuePage() {
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('net')" id="revbtn-net" style="padding:0 24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Net to You (YTD)</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--green2);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px;">${netPct}% kept ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('mtd')" id="revbtn-mtd" style="padding-left:24px;">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${nowMonthName} MTD</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">${fmt$(rs.mtdRevenue)}</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.mtdRevenue)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px;">${rs.mtdCount} reservations ↗</div>
           </div>
         </div>
@@ -3327,14 +3327,14 @@ function renderRevenuePage() {
     <!-- Year Outlook Banner -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
       <div class="card" style="padding:14px 18px;">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Confirmed Pipeline</div>
-        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text2);">${fmt$(Object.values(rs.projByMonth).reduce((s,m)=>s+m.revenue,0))}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">future bookings on the books</div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${now.getFullYear()} Full-Year Outlook</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text);">${fmt$(rs.fullYearProjected)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">actual + confirmed pipeline</div>
       </div>
       <div class="card" style="padding:14px 18px;">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${now.getFullYear()} Full-Year Outlook</div>
-        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text2);">${fmt$(rs.fullYearProjected)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">actual + confirmed pipeline</div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Confirmed Pipeline</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text);">${fmt$(Object.values(rs.projByMonth).reduce((s,m)=>s+m.revenue,0))}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">future bookings on the books</div>
       </div>
     </div>
 
