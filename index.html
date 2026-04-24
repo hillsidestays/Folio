@@ -381,8 +381,9 @@ body {
 .bar-row { display: flex; align-items: center; gap: 10px; }
 .bar-label { font-size: 11px; color: var(--text2); width: 80px; flex-shrink: 0; text-align: right; }
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 4px; background: var(--gold); opacity: 0.75; transition: width 0.5s ease; }
+.bar-fill { height: 100%; border-radius: 4px; background: #5B8DEF; opacity: 0.9; transition: width 0.5s ease; }
 .bar-fill.green { background: var(--green2); }
+.bar-fill.projected { background: #5B8DEF; opacity: 0.28; border: 1px dashed #5B8DEF; box-sizing: border-box; }
 .bar-val { font-size: 11px; color: var(--text2); width: 58px; font-family: 'Geist Mono', monospace; text-align: right; }
 .donut-placeholder { width: 110px; height: 110px; border-radius: 50%; border: 14px solid var(--bg4); border-top-color: var(--gold); border-right-color: var(--green2); }
 
@@ -3125,7 +3126,7 @@ function calcRevenueStats() {
     if (!ch) return 'other';
     const c = ch.toLowerCase();
     if (c.includes('airbnb')) return 'airbnb';
-    if (c.includes('direct') || c.includes('widget') || c.includes('manual')) return 'direct';
+    if (c.includes('direct') || c.includes('widget')) return 'direct';
     if (c.includes('vrbo') || c.includes('homeaway')) return 'vrbo';
     return 'other';
   }
@@ -3141,6 +3142,7 @@ function calcRevenueStats() {
   for (const r of reservations) {
     if (!r.checkIn) continue;
     if (SKIP_STATUSES.includes((r.status || '').toLowerCase())) continue;
+    if ((r.channel || '').toLowerCase() === 'manual') continue; // owner stays
     const d = new Date(r.checkIn);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const rev = parseFloat(r.totalRevenue) || 0;
@@ -3254,13 +3256,13 @@ function renderRevenuePage() {
     </div>
     <div class="rev-grid">
       <div class="card">
-        <div class="card-head"><div class="card-title">Monthly Revenue</div><div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);"><span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:var(--gold);border-radius:2px;display:inline-block;"></span>Actual</span><span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:var(--gold);opacity:0.35;border-radius:2px;border:1px dashed var(--gold);display:inline-block;"></span>Projected</span></div></div>
+        <div class="card-head"><div class="card-title">Monthly Revenue</div><div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);"><span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:#5B8DEF;border-radius:2px;display:inline-block;"></span>Actual</span><span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:#5B8DEF;opacity:0.35;border-radius:2px;border:1px dashed #5B8DEF;display:inline-block;"></span>Projected</span></div></div>
         <div class="rev-bars">
           <div class="bar-chart">
             ${months.map(m => `
               <div class="bar-row">
                 <div class="bar-label" style="width:48px;font-size:10.5px;${m.projected ? 'color:var(--text3);' : ''}">${m.label}</div>
-                <div class="bar-track"><div class="bar-fill" style="width:${m.revenue > 0 ? Math.round((m.revenue/maxRev)*100) : 0}%;${m.projected ? 'opacity:0.4;border:1px dashed var(--gold);box-sizing:border-box;' : ''}"></div></div>
+                <div class="bar-track"><div class="bar-fill${m.projected ? ' projected' : ''}" style="width:${m.revenue > 0 ? Math.round((m.revenue/maxRev)*100) : 0}%;"></div></div>
                 <div class="bar-val" style="${m.projected ? 'color:var(--text3);' : ''}">${m.revenue > 0 ? fmt$(m.revenue) : '—'}</div>
               </div>`).join('')}
           </div>
