@@ -381,13 +381,12 @@ body {
 .bar-row { display: flex; align-items: center; gap: 10px; }
 .bar-label { font-size: 11px; color: var(--text2); width: 80px; flex-shrink: 0; text-align: right; }
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; display: flex; }
-.bar-fill { height: 100%; transition: width 0.5s ease; }
-.bar-fill.green { background: var(--green2); opacity: 0.9; }
-.bar-seg-airbnb { background: #E8604A; opacity: 0.85; }
-.bar-seg-direct  { background: #4ABFB8; opacity: 0.85; }
-.bar-seg-other   { background: #9B7FD4; opacity: 0.85; }
-.bar-seg-proj    { opacity: 0.45; }
-.bar-present-wrap { outline: 1px solid var(--gold); outline-offset: -1px; border-radius: 4px; overflow: hidden; display: flex; width: 100%; height: 100%; }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--green2); opacity: 0.75; transition: width 0.5s ease; }
+.bar-fill.present { background: var(--gold2); opacity: 1; }
+.bar-fill.projected { background: #C8763C; opacity: 0.5; border: 1px dashed #C8763C; box-sizing: border-box; border-radius: 4px; }
+.bar-seg-airbnb { background: var(--red); opacity: 0.85; border-radius: 4px; }
+.bar-seg-direct  { background: #3A6FBF; opacity: 0.85; border-radius: 4px; }
+.bar-seg-other   { background: var(--text3); opacity: 0.6; border-radius: 4px; }
 .rev-stat-btn { cursor: pointer; transition: background 0.15s; border-radius: 8px; padding: 2px; margin: -2px; }
 .rev-stat-btn:hover { background: rgba(255,255,255,0.04); }
 .rev-stat-btn.active { background: rgba(255,255,255,0.06); outline: 1px solid var(--border2); }
@@ -3319,17 +3318,17 @@ function renderRevenuePage() {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
       <div class="card" style="padding:14px 18px;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${now.getFullYear()} Earned</div>
-        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text);">${fmt$(rs.ytdRevenue)}</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--gold2);">${fmt$(rs.ytdRevenue)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">Jan – ${nowMonthName} · actual</div>
       </div>
       <div class="card" style="padding:14px 18px;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Confirmed Pipeline</div>
-        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text);">${fmt$(Object.values(rs.projByMonth).reduce((s,m)=>s+m.revenue,0))}</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--gold2);">${fmt$(Object.values(rs.projByMonth).reduce((s,m)=>s+m.revenue,0))}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">future bookings on the books</div>
       </div>
       <div class="card" style="padding:14px 18px;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${now.getFullYear()} Full-Year Outlook</div>
-        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--text);">${fmt$(rs.fullYearProjected)}</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--gold2);">${fmt$(rs.fullYearProjected)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">actual + confirmed pipeline</div>
       </div>
     </div>
@@ -3339,11 +3338,8 @@ function renderRevenuePage() {
         <div class="card-head">
           <div class="card-title">Monthly Revenue</div>
           <div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);">
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#E8604A;display:inline-block;"></span>Airbnb</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#4ABFB8;display:inline-block;"></span>Direct</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#9B7FD4;display:inline-block;"></span>Other</span>
-            <span style="display:flex;align-items:center;gap:4px;margin-left:4px;border-left:1px solid var(--border);padding-left:12px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--border2);display:inline-block;"></span>Past</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);outline:1px solid var(--gold);display:inline-block;"></span>This month</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green2);display:inline-block;"></span>Past</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);display:inline-block;"></span>This month</span>
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#C8763C;opacity:0.6;border:1px dashed #C8763C;display:inline-block;"></span>Projected</span>
           </div>
         </div>
@@ -3351,24 +3347,13 @@ function renderRevenuePage() {
           <div class="bar-chart">
             ${months.map(m => {
               const isPresent = m.key === thisMonthKey;
-              const proj = m.projected;
-              const total = m.revenue || 0;
-              const pct = total > 0 ? total / maxRev : 0;
-              const airbnbW = total > 0 ? Math.round((m.airbnb||0)/maxRev*100) : 0;
-              const directW = total > 0 ? Math.round((m.direct||0)/maxRev*100) : 0;
-              const otherW  = total > 0 ? Math.round(((m.other||0)+(m.vrbo||0))/maxRev*100) : 0;
-              const opacity = proj ? '0.45' : '0.85';
-              const border  = proj ? `outline:1px dashed #C8763C;outline-offset:-1px;` : isPresent ? 'outline:1px solid var(--gold);outline-offset:-1px;' : '';
-              const labelColor = proj ? 'color:var(--text3);' : isPresent ? 'color:var(--text);font-weight:500;' : '';
-              const valColor = proj ? 'color:var(--text3);' : '';
+              const cls = m.projected ? ' projected' : isPresent ? ' present' : '';
+              const labelColor = m.projected ? 'color:var(--text3);' : isPresent ? 'color:var(--text);font-weight:500;' : '';
+              const valColor = m.projected ? 'color:var(--text3);' : '';
               return `<div class="bar-row">
                 <div class="bar-label" style="width:48px;font-size:10.5px;${labelColor}">${m.label}</div>
-                <div class="bar-track" style="${border}border-radius:4px;">
-                  <div class="bar-fill bar-seg-airbnb" style="width:${airbnbW}%;opacity:${opacity};"></div>
-                  <div class="bar-fill bar-seg-direct"  style="width:${directW}%;opacity:${opacity};"></div>
-                  <div class="bar-fill bar-seg-other"   style="width:${otherW}%;opacity:${opacity};"></div>
-                </div>
-                <div class="bar-val" style="${valColor}">${total > 0 ? fmt$(total) : '—'}</div>
+                <div class="bar-track"><div class="bar-fill${cls}" style="width:${m.revenue > 0 ? Math.round((m.revenue/maxRev)*100) : 0}%;"></div></div>
+                <div class="bar-val" style="${valColor}">${m.revenue > 0 ? fmt$(m.revenue) : '—'}</div>
               </div>`;
             }).join('')}
           </div>
