@@ -2738,6 +2738,7 @@ async function connectHospitable() {
     toast(`✓ Hospitable synced — ${rawProps.length} properties, ${(db.get('reservations')||[]).length} reservations`);
     refreshDashboard();
     renderPropertyGrid();
+    if (document.getElementById('revenue-content')) renderRevenuePage();
 
     // Show raw property UUIDs in console for HOSP_PROP_MAP wiring
     console.table(rawProps.map(p => ({ name: p.name || p.title, hospId: p.id, city: p.address?.city })));
