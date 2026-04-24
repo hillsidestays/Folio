@@ -2686,7 +2686,8 @@ async function connectHospitable() {
     log('Fetching reservations…');
     try {
       const rawRes = await fetchHospitableReservations(hospIds);
-      if (rawRes.length > 0) console.log('[Hospitable] money sample:', JSON.stringify(rawRes.find(r => r.status === 'accepted' || r.status === 'confirmed')?.money));
+      const sampleRes = rawRes.find(r => !['denied','declined','cancelled'].includes(r.status));
+      if (sampleRes) console.log('[Hospitable] sample res status:', sampleRes.status, 'money:', JSON.stringify(sampleRes.money));
       const mappedRes = rawRes.map(mapHospReservation);
       db.set('reservations', mappedRes);
       log(`Synced ${mappedRes.length} reservation${mappedRes.length === 1 ? '' : 's'}`, 'ok');
@@ -3157,7 +3158,11 @@ function calcRevenueStats() {
 
   // Rolling 30-day window
   const thirtyAgo = new Date(now); thirtyAgo.setDate(thirtyAgo.getDate()-30);
-  const recent = reservations.filter(r => r.checkIn && new Date(r.checkIn) >= thirtyAgo);
+  const recent = reservations.filter(r => {
+    if (!r.checkIn) return false;
+    const d = new Date(r.checkIn);
+    return d >= thirtyAgo && d <= now;
+  });
   const recentNights = recent.reduce((s,r) => s + (parseInt(r.nights)||0), 0);
   const recentRev    = recent.reduce((s,r) => s + (parseFloat(r.totalRevenue)||0), 0);
   const occupancy30  = Math.round((recentNights / 30) * 100);
