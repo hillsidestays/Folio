@@ -2614,7 +2614,10 @@ function mapHospReservation(r) {
   // Hospitable V2 actual shape (from API inspection):
   // { id, platform, arrival_date, departure_date, check_in, check_out, nights,
   //   guests: { total }, status, money: { host_payout, ... } }
-  const propId = r.property?.id || r.property_id;
+  const hospPropId = r.property?.id || r.property_id;
+  // Translate Hospitable UUID → Folio property ID using the map (built before reservations are fetched)
+  const folioId = Object.keys(HOSP_PROP_MAP).find(k => HOSP_PROP_MAP[k] === hospPropId);
+  const propId = folioId || hospPropId;
   return {
     id:           `res_${r.id}`,
     hospId:       r.id,
@@ -3138,10 +3141,11 @@ function calcRevenueStats(propertyId = null) {
   const allReservations = db.get('reservations') || [];
   let reservations = allReservations;
   if (propertyId) {
-    // Reservations store the Hospitable UUID as propertyId, not the Folio ID.
-    // Build a set of all IDs that refer to this property.
-    const prop = (db.get('properties') || []).find(p => p.id === propertyId);
-    const hospUuid = prop?.hosp_id || prop?.hospId || HOSP_PROP_MAP[propertyId];
+    // Reservations now store the Folio property ID (translated at sync time via HOSP_PROP_MAP).
+    // Also accept the Hospitable UUID as a fallback for reservations synced before this fix.
+    const hospUuid = HOSP_PROP_MAP[propertyId]
+      || (db.get('properties') || []).find(p => p.id === propertyId)?.hosp_id
+      || (db.get('properties') || []).find(p => p.id === propertyId)?.hospId;
     const matchIds = new Set([propertyId, hospUuid].filter(Boolean));
     reservations = allReservations.filter(r => matchIds.has(r.propertyId || r.property_id));
   }
