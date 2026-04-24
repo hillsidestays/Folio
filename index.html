@@ -2791,18 +2791,13 @@ function seedData() {
   if (!db.get('properties')) {
     db.set('properties', [
       { id: 'prop_lbh', name: 'Lightning Bug Holler', city: 'Pigeon Forge, TN', type: 'Cabin / Mountain', bedrooms: '4', bathrooms: '3', guests: '10', airbnb: 'https://airbnb.com', direct: 'https://lightningbugholler.net', notes: 'Private indoor heated pool · Van Gogh mural · 4BR', occupancy: 84, adr: 312, rating: 4.97, status: 'active', emoji: '🏡' },
-      { id: 'prop_rvr', name: 'Ridge View Retreat', city: 'Boone, NC', type: 'Cabin / Mountain', bedrooms: '3', bathrooms: '2', guests: '6', airbnb: '', direct: '', notes: 'Mountain views · hot tub', occupancy: 61, adr: 198, rating: 4.71, status: 'needs_attention', emoji: '⛰️' },
-      { id: 'prop_ccb', name: 'Creekside Cabin', city: 'Bryson City, NC', type: 'Cabin / Mountain', bedrooms: '2', bathrooms: '2', guests: '4', airbnb: '', direct: '', notes: 'Creekfront · private firepit', occupancy: 77, adr: 224, rating: 4.89, status: 'active', emoji: '🌿' },
     ]);
   }
   if (!db.get('tasks')) {
     db.set('tasks', [
-      { id: 't1', title: 'Send April owner reports — all properties', property: '', category: 'Owner Comms', due: '2026-04-21', priority: 'high', done: false, notes: 'Monthly recurring' },
+      { id: 't1', title: 'Send April owner reports', property: 'prop_lbh', category: 'Owner Comms', due: '2026-04-21', priority: 'high', done: false, notes: 'Monthly recurring' },
       { id: 't2', title: 'Update summer pricing floors in PriceLabs', property: '', category: 'Revenue', due: '2026-04-30', priority: 'med', done: false, notes: 'Before June demand surge' },
-      { id: 't3', title: 'Qualify backup cleaner for Boone market', property: 'prop_rvr', category: 'Operations', due: '2026-05-01', priority: 'med', done: false, notes: 'Before Memorial Day volume' },
-      { id: 't4', title: 'Inspect hot tub filter — Creekside Cabin', property: 'prop_ccb', category: 'Maintenance', due: '2026-05-05', priority: 'low', done: false, notes: '' },
-      { id: 't5', title: 'Update Ridge View Airbnb listing description', property: 'prop_rvr', category: 'Listing', due: '2026-05-08', priority: 'low', done: false, notes: '' },
-      { id: 't6', title: 'Refresh Lightning Bug Holler listing photos', property: 'prop_lbh', category: 'Listing', due: '2026-04-18', priority: 'low', done: true, notes: '' },
+      { id: 't3', title: 'Refresh Lightning Bug Holler listing photos', property: 'prop_lbh', category: 'Listing', due: '2026-04-18', priority: 'low', done: true, notes: '' },
     ]);
   }
   if (!db.get('content')) {
@@ -3139,8 +3134,11 @@ function refreshDashboard() {
 //  REVENUE STATS + PAGE
 // ────────────────────────────────────────────────────────
 
-function calcRevenueStats() {
-  const reservations = db.get('reservations') || [];
+function calcRevenueStats(propertyId = null) {
+  const allReservations = db.get('reservations') || [];
+  const reservations = propertyId
+    ? allReservations.filter(r => (r.propertyId || r.property_id) === propertyId)
+    : allReservations;
   const now = new Date(); now.setHours(0,0,0,0);
   const thisYear = now.getFullYear();
   const thisMonth = now.getMonth();
@@ -3220,17 +3218,25 @@ function calcRevenueStats() {
     if (d <= d30) { pipe30 += rev; pipeNights30 += nights; }
   }
 
-  // Rolling 30-day past window
+  // Rolling 30-day past window — count nights actually overlapping the window
   const thirtyAgo = new Date(now); thirtyAgo.setDate(thirtyAgo.getDate()-30);
-  const recent = reservations.filter(r => {
-    if (!r.checkIn) return false;
-    const d = new Date(r.checkIn);
-    return d >= thirtyAgo && d <= now;
-  });
-  const recentNights = recent.reduce((s,r) => s + (parseInt(r.nights)||0), 0);
-  const recentRev    = recent.reduce((s,r) => s + (parseFloat(r.totalRevenue)||0), 0);
-  const occupancy30  = Math.round((recentNights / 30) * 100);
-  const adr30        = recentNights > 0 ? Math.round(recentRev / recentNights) : 0;
+  let recentNights = 0, recentRev = 0;
+  for (const r of reservations) {
+    if (!r.checkIn || SKIP_STATUSES.includes((r.status||'').toLowerCase())) continue;
+    const checkIn  = new Date(r.checkIn);
+    const nights   = parseInt(r.nights) || 0;
+    const checkOut = new Date(checkIn); checkOut.setDate(checkOut.getDate() + nights);
+    const overlapStart = checkIn  > thirtyAgo ? checkIn  : thirtyAgo;
+    const overlapEnd   = checkOut < now       ? checkOut : now;
+    const overlapDays  = Math.max(0, Math.round((overlapEnd - overlapStart) / 86400000));
+    if (overlapDays > 0) {
+      recentNights += overlapDays;
+      recentRev    += parseFloat(r.totalRevenue) || 0;
+    }
+  }
+  const activePropCount = propertyId ? 1 : Math.max(1, (db.get('properties')||[]).filter(p => p.status === 'active').length);
+  const occupancy30 = Math.min(100, Math.round((recentNights / (30 * activePropCount)) * 100));
+  const adr30       = recentNights > 0 ? Math.round(recentRev / recentNights) : 0;
   const directPct    = mtd.revenue > 0 ? Math.round((mtd.direct / mtd.revenue) * 100) : 0;
 
   const fullYearProjected = ytdRevenue + Object.values(projByMonth).reduce((s,m) => s + m.revenue, 0);
@@ -3244,16 +3250,34 @@ function calcRevenueStats() {
 }
 
 function renderRevenuePage() {
-  const reservations = db.get('reservations') || [];
-  const rs   = calcRevenueStats();
+  const allReservations = db.get('reservations') || [];
+  const properties = (db.get('properties') || []).filter(p => p.status === 'active');
+  const rs   = calcRevenueStats(_revPropertyFilter);
   const fmt$ = n => '$' + Math.round(n).toLocaleString();
   const container = document.getElementById('revenue-content');
   if (!container) return;
 
-  if (!reservations.length) {
+  if (!allReservations.length) {
     container.innerHTML = `<div class="empty-state" style="padding:60px;"><div class="empty-icon">$</div><div class="empty-title">Connect Hospitable to see real revenue data</div><div class="empty-sub">Go to Integrations → Connect Hospitable, then click Sync Now</div></div>`;
     return;
   }
+
+  const filterLabel = _revPropertyFilter
+    ? (properties.find(p => p.id === _revPropertyFilter)?.name || 'Property')
+    : 'All Properties';
+
+  const propertyDropdown = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;">Viewing:</span>
+      <div style="position:relative;display:inline-block;">
+        <select onchange="setRevenueFilter(this.value)" style="appearance:none;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:5px 28px 5px 10px;cursor:pointer;font-family:inherit;">
+          <option value="" ${!_revPropertyFilter ? 'selected' : ''}>All Properties</option>
+          ${properties.map(p => `<option value="${p.id}" ${_revPropertyFilter === p.id ? 'selected' : ''}>${p.emoji || '🏡'} ${p.name}</option>`).join('')}
+        </select>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:10px;">▾</span>
+      </div>
+      ${_revPropertyFilter ? `<span style="font-size:10px;color:var(--text3);">· filtered to 1 property</span>` : `<span style="font-size:10px;color:var(--text3);">· ${properties.length} propert${properties.length===1?'y':'ies'}</span>`}
+    </div>`;
 
   // 6 past months + 6 future months
   const now = new Date();
@@ -3285,7 +3309,7 @@ function renderRevenuePage() {
   const feesPct = rs.ytdGross > 0 ? Math.round((rs.ytdFees / rs.ytdGross) * 100) : 0;
   const netPct  = rs.ytdGross > 0 ? Math.round((rs.ytdRevenue / rs.ytdGross) * 100) : 100;
 
-  container.innerHTML = `
+  container.innerHTML = propertyDropdown + `
     <!-- YTD Revenue Hero -->
     <div class="card" style="margin-bottom:16px;" id="rev-hero-card">
       <div class="card-body" style="padding:22px 24px;">
@@ -3414,6 +3438,13 @@ function renderRevenuePage() {
 // ────────────────────────────────────────────────────────
 
 let _revDetailOpen = null;
+let _revPropertyFilter = null;
+
+function setRevenueFilter(propId) {
+  _revPropertyFilter = propId || null;
+  _revDetailOpen = null;
+  renderRevenuePage();
+}
 
 function toggleRevDetail(type) {
   const panel = document.getElementById('rev-detail-panel');
@@ -3426,7 +3457,7 @@ function toggleRevDetail(type) {
   }
   _revDetailOpen = type;
   document.getElementById('revbtn-' + type)?.classList.add('active');
-  const rs = calcRevenueStats();
+  const rs = calcRevenueStats(_revPropertyFilter);
   const fmt$ = n => '$' + Math.round(n).toLocaleString();
   const fmt$d = n => n < 0 ? '−$' + Math.round(Math.abs(n)).toLocaleString() : '$' + Math.round(n).toLocaleString();
   const now = new Date();
