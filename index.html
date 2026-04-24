@@ -3445,7 +3445,7 @@ function toggleRevDetail(type) {
       ${row('Accommodation charges', fmt$(rs.ytdGross - rs.ytdCleaning), 'var(--text)')}
       ${row('Cleaning fees collected', fmt$(rs.ytdCleaning), 'var(--text)')}
       ${row('Guest discounts applied', '−' + fmt$(rs.ytdDiscounts), 'var(--text3)')}
-      ${row('Total gross (guest paid)', fmt$(rs.ytdGross), 'var(--gold2)')}
+      ${row('Total gross (guest paid)', fmt$(rs.ytdGross), 'var(--green2)')}
       <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Avg booking value ${fmt$(avgBooking)} · ${reservations.filter(r => { const d=new Date(r.checkIn); return d<=now && d.getFullYear()===now.getFullYear(); }).length} reservations YTD</div>`;
   } else if (type === 'fees') {
     const effectiveRate = rs.ytdGross > 0 ? ((rs.ytdServiceFees / rs.ytdGross) * 100).toFixed(1) : 0;
@@ -3464,7 +3464,7 @@ function toggleRevDetail(type) {
         const label = new Date(now.getFullYear(), parseInt(mo)-1, 1).toLocaleDateString('en-US',{month:'long'});
         return row(label, fmt$(byM[k].revenue), 'var(--green2)', `${byM[k].count} reservations · ${byM[k].nights} nights`);
       }).join('')}
-      ${row('YTD Total', fmt$(rs.ytdRevenue), 'var(--green2)')}
+      ${row('YTD Total', fmt$(rs.ytdRevenue), 'var(--gold2)')}
       <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Airbnb ${fmt$(Object.values(byM).filter((_,i)=>Object.keys(byM).sort()[i]?.startsWith(now.getFullYear()+'')).reduce((s,m)=>s+m.airbnb,0))} · Direct ${fmt$(Object.values(byM).filter((_,i)=>Object.keys(byM).sort()[i]?.startsWith(now.getFullYear()+'')).reduce((s,m)=>s+m.direct,0))}</div>`;
   } else if (type === 'mtd') {
     const mtdRes = reservations.filter(r => {
@@ -3478,7 +3478,7 @@ function toggleRevDetail(type) {
         'var(--text)',
         `${r.nights} nights · ${(r.channel||'').toLowerCase()}`
       )).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0;">No completed reservations this month yet.</div>'}
-      ${row(nowMonthName + ' Total', fmt$(rs.mtdRevenue), 'var(--gold2)')}
+      ${row(nowMonthName + ' Total', fmt$(rs.mtdRevenue), 'var(--green2)')}
       <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Airbnb ${fmt$(rs.mtdAirbnb)} · Direct ${fmt$(rs.mtdDirect)} · ${rs.mtdNights} nights booked</div>`;
   }
 
