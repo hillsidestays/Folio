@@ -385,7 +385,7 @@ body {
 .bar-fill.present { background: #E8904A; opacity: 1; }
 .bar-fill.projected { background: var(--gold2); opacity: 0.85; border-radius: 4px; }
 .bar-seg-airbnb { background: var(--red); opacity: 0.85; border-radius: 4px; }
-.bar-seg-direct  { background: var(--green2); opacity: 0.85; border-radius: 4px; }
+.bar-seg-direct  { background: #5B8FBF; opacity: 0.85; border-radius: 4px; }
 .bar-seg-other   { background: var(--text3); opacity: 0.6; border-radius: 4px; }
 .rev-stat-btn { cursor: pointer; transition: background 0.15s; border-radius: 8px; padding: 2px; margin: -2px; }
 .rev-stat-btn:hover { background: rgba(255,255,255,0.04); }
@@ -3291,7 +3291,7 @@ function renderRevenuePage() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;">
           <div class="rev-stat-btn" onclick="toggleRevDetail('gross')" id="revbtn-gross" style="padding-right:24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">YTD Gross Bookings</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">${fmt$(rs.ytdGross)}</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.ytdGross)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px;">what guests paid ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('fees')" id="revbtn-fees" style="padding:0 24px;border-right:1px solid var(--border);">
@@ -3301,7 +3301,7 @@ function renderRevenuePage() {
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('net')" id="revbtn-net" style="padding:0 24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Net to You (YTD)</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--green2);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px;">${netPct}% kept ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('mtd')" id="revbtn-mtd" style="padding-left:24px;">
@@ -3462,9 +3462,9 @@ function toggleRevDetail(type) {
       ${months.map(k => {
         const [,mo] = k.split('-');
         const label = new Date(now.getFullYear(), parseInt(mo)-1, 1).toLocaleDateString('en-US',{month:'long'});
-        return row(label, fmt$(byM[k].revenue), 'var(--green2)', `${byM[k].count} reservations · ${byM[k].nights} nights`);
+        return row(label, fmt$(byM[k].revenue), 'var(--text)', `${byM[k].count} reservations · ${byM[k].nights} nights`);
       }).join('')}
-      ${row('YTD Total', fmt$(rs.ytdRevenue), 'var(--gold2)')}
+      ${row('YTD Total', fmt$(rs.ytdRevenue), 'var(--green2)')}
       <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Airbnb ${fmt$(Object.values(byM).filter((_,i)=>Object.keys(byM).sort()[i]?.startsWith(now.getFullYear()+'')).reduce((s,m)=>s+m.airbnb,0))} · Direct ${fmt$(Object.values(byM).filter((_,i)=>Object.keys(byM).sort()[i]?.startsWith(now.getFullYear()+'')).reduce((s,m)=>s+m.direct,0))}</div>`;
   } else if (type === 'mtd') {
     const mtdRes = reservations.filter(r => {
