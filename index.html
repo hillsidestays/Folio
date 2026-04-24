@@ -2606,9 +2606,9 @@ function mapHospReservation(r) {
     guests:       r.guests?.total || r.number_of_guests || r.guests_count,
     status:       r.status,
     channel:      r.platform || r.source || r.channel,
-    totalRevenue: r.money?.host_payout ?? r.financials?.host_payout ?? r.money?.total ?? r.financials?.total ?? null,
-    nightlyRate:  r.money?.nightly_price || r.financials?.nightly_price,
-    cleaningFee:  r.money?.cleaning_fee  || r.financials?.cleaning_fee,
+    totalRevenue: r.financials?.host?.revenue?.amount != null ? r.financials.host.revenue.amount / 100 : null,
+    nightlyRate:  r.financials?.guest?.average_nightly_rate?.amount != null ? r.financials.guest.average_nightly_rate.amount / 100 : null,
+    cleaningFee:  r.financials?.host?.guest_fees?.[0]?.amount != null ? r.financials.host.guest_fees[0].amount / 100 : null,
     otaFee:       r.money?.guest_service_fee || r.guest_service_fee,
     currency:     r.money?.currency || 'USD',
     _source:      'hospitable',
@@ -2686,8 +2686,6 @@ async function connectHospitable() {
     log('Fetching reservations…');
     try {
       const rawRes = await fetchHospitableReservations(hospIds);
-      const sampleRes = rawRes.find(r => !['denied','declined','cancelled'].includes(r.status));
-      if (sampleRes) console.log('[Hospitable] sample res keys:', Object.keys(sampleRes).join(', '), '| financials:', JSON.stringify(sampleRes.financials), '| money:', JSON.stringify(sampleRes.money));
       const mappedRes = rawRes.map(mapHospReservation);
       db.set('reservations', mappedRes);
       log(`Synced ${mappedRes.length} reservation${mappedRes.length === 1 ? '' : 's'}`, 'ok');
