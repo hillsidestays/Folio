@@ -2617,10 +2617,15 @@ function mapHospReservation(r) {
   const hospPropId = r.property?.id || r.property_id || r.property_uuid;
   // Translate Hospitable UUID → Folio property ID
   let folioId = Object.keys(HOSP_PROP_MAP).find(k => HOSP_PROP_MAP[k] === hospPropId);
-  // If API doesn't embed property ID (common in V2), infer from the map when only one property exists
+  // If API doesn't embed property ID (common in V2), infer from the map
   if (!folioId && !hospPropId) {
     const entries = Object.entries(HOSP_PROP_MAP);
-    if (entries.length === 1) folioId = entries[0][0];
+    const uniqueUUIDs = new Set(entries.map(([, v]) => v));
+    if (uniqueUUIDs.size === 1) {
+      // All entries point to same property — prefer non-prop_hosp_ canonical ID
+      const canonical = entries.find(([k]) => !k.startsWith('prop_hosp_')) || entries[0];
+      folioId = canonical[0];
+    }
   }
   const propId = folioId || hospPropId;
   return {
@@ -2709,7 +2714,14 @@ async function connectHospitable() {
       }
     }
 
+    // Merge new mappings and remove stale prop_hosp_* duplicates that point to same UUID
     HOSP_PROP_MAP = { ...HOSP_PROP_MAP, ...newMap };
+    const mappedUUIDs = new Set(Object.values(newMap));
+    for (const k of Object.keys(HOSP_PROP_MAP)) {
+      if (k.startsWith('prop_hosp_') && mappedUUIDs.has(HOSP_PROP_MAP[k])) {
+        delete HOSP_PROP_MAP[k];
+      }
+    }
     saveHospPropMap();
     log(`HOSP_PROP_MAP updated with ${Object.keys(newMap).length} entr${Object.keys(newMap).length === 1 ? 'y' : 'ies'}`, 'ok');
 
