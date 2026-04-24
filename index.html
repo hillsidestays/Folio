@@ -2537,7 +2537,7 @@ async function fetchHospitableReservations(hospPropertyIds = []) {
   const params = { start_date: fmt(start), end_date: fmt(end) };
   const arrayParams = {
     ...(hospPropertyIds.length ? { 'properties[]': hospPropertyIds } : {}),
-    'include[]': ['reviews'],
+    'include[]': ['reviews', 'money'],
   };
   return hospFetchAll('/reservations', params, arrayParams);
 }
@@ -2591,25 +2591,24 @@ function mapHospProperty(h) {
 }
 
 function mapHospReservation(r) {
-  // Hospitable V2 reservation shape:
-  // { id, property: { id }, guest: { name }, check_in, check_out, nights,
-  //   number_of_guests, status, source/channel,
-  //   money: { host_payout, nightly_price, cleaning_fee, ... } }
+  // Hospitable V2 actual shape (from API inspection):
+  // { id, platform, arrival_date, departure_date, check_in, check_out, nights,
+  //   guests: { total }, status, money: { host_payout, ... } }
   const propId = r.property?.id || r.property_id;
   return {
     id:           `res_${r.id}`,
     hospId:       r.id,
     propertyId:   propId,
     guestName:    r.guest?.name || r.guest?.full_name || r.guest_name || 'Guest',
-    checkIn:      r.check_in || r.arrival,
-    checkOut:     r.check_out || r.departure,
+    checkIn:      r.arrival_date || r.check_in || r.arrival,
+    checkOut:     r.departure_date || r.check_out || r.departure,
     nights:       r.nights || r.number_of_nights,
-    guests:       r.number_of_guests || r.guests_count || r.guests,
+    guests:       r.guests?.total || r.number_of_guests || r.guests_count,
     status:       r.status,
-    channel:      r.source || r.channel || r.platform,
-    totalRevenue: r.money?.host_payout ?? r.money?.total ?? r.host_payout ?? r.total_price ?? r.amount ?? null,
-    nightlyRate:  r.money?.nightly_price || r.nightly_price,
-    cleaningFee:  r.money?.cleaning_fee || r.cleaning_fee,
+    channel:      r.platform || r.source || r.channel,
+    totalRevenue: r.money?.host_payout ?? r.money?.total_host_payout ?? r.money?.total ?? r.money?.accommodation ?? null,
+    nightlyRate:  r.money?.nightly_price || r.money?.accommodation,
+    cleaningFee:  r.money?.cleaning_fee || r.money?.cleaning,
     otaFee:       r.money?.guest_service_fee || r.guest_service_fee,
     currency:     r.money?.currency || 'USD',
     _source:      'hospitable',
@@ -2687,7 +2686,7 @@ async function connectHospitable() {
     log('Fetching reservations…');
     try {
       const rawRes = await fetchHospitableReservations(hospIds);
-      if (rawRes.length > 0) console.log('[Hospitable] raw reservation:', JSON.stringify(rawRes[0], null, 2));
+      if (rawRes.length > 0) console.log('[Hospitable] money sample:', JSON.stringify(rawRes.find(r => r.status === 'accepted' || r.status === 'confirmed')?.money));
       const mappedRes = rawRes.map(mapHospReservation);
       db.set('reservations', mappedRes);
       log(`Synced ${mappedRes.length} reservation${mappedRes.length === 1 ? '' : 's'}`, 'ok');
@@ -3136,8 +3135,10 @@ function calcRevenueStats() {
   let ytdRevenue = 0;
   let allTimeBest = { key: null, revenue: 0 };
 
+  const SKIP_STATUSES = ['denied', 'declined', 'cancelled', 'canceled', 'no_show'];
   for (const r of reservations) {
     if (!r.checkIn || r.totalRevenue == null) continue;
+    if (SKIP_STATUSES.includes((r.status || '').toLowerCase())) continue;
     const d = new Date(r.checkIn);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const rev = parseFloat(r.totalRevenue) || 0;
