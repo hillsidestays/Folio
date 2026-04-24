@@ -2614,9 +2614,14 @@ function mapHospReservation(r) {
   // Hospitable V2 actual shape (from API inspection):
   // { id, platform, arrival_date, departure_date, check_in, check_out, nights,
   //   guests: { total }, status, money: { host_payout, ... } }
-  const hospPropId = r.property?.id || r.property_id;
-  // Translate Hospitable UUID → Folio property ID using the map (built before reservations are fetched)
-  const folioId = Object.keys(HOSP_PROP_MAP).find(k => HOSP_PROP_MAP[k] === hospPropId);
+  const hospPropId = r.property?.id || r.property_id || r.property_uuid;
+  // Translate Hospitable UUID → Folio property ID
+  let folioId = Object.keys(HOSP_PROP_MAP).find(k => HOSP_PROP_MAP[k] === hospPropId);
+  // If API doesn't embed property ID (common in V2), infer from the map when only one property exists
+  if (!folioId && !hospPropId) {
+    const entries = Object.entries(HOSP_PROP_MAP);
+    if (entries.length === 1) folioId = entries[0][0];
+  }
   const propId = folioId || hospPropId;
   return {
     id:           `res_${r.id}`,
