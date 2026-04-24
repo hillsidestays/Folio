@@ -381,10 +381,15 @@ body {
 .bar-row { display: flex; align-items: center; gap: 10px; }
 .bar-label { font-size: 11px; color: var(--text2); width: 80px; flex-shrink: 0; text-align: right; }
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 4px; background: #A09880; opacity: 0.85; transition: width 0.5s ease; }
-.bar-fill.green { background: var(--green2); }
-.bar-fill.present { background: #C4B07A; opacity: 0.95; }
-.bar-fill.projected { background: #8AA090; opacity: 0.55; border: 1px dashed #8AA090; box-sizing: border-box; }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--text3); opacity: 0.7; transition: width 0.5s ease; }
+.bar-fill.green { background: var(--green2); opacity: 0.9; }
+.bar-fill.present { background: var(--gold2); opacity: 1; }
+.bar-fill.projected { background: var(--green); opacity: 0.6; border: 1px dashed var(--green2); box-sizing: border-box; }
+.rev-stat-btn { cursor: pointer; transition: background 0.15s; border-radius: 8px; padding: 2px; margin: -2px; }
+.rev-stat-btn:hover { background: rgba(255,255,255,0.04); }
+.rev-stat-btn.active { background: rgba(255,255,255,0.06); outline: 1px solid var(--border2); }
+.rev-detail-panel { border-top: 1px solid var(--border); padding: 18px 24px 20px; animation: fadeIn 0.18s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
 .bar-val { font-size: 11px; color: var(--text2); width: 58px; font-family: 'Geist Mono', monospace; text-align: right; }
 .donut-placeholder { width: 110px; height: 110px; border-radius: 50%; border: 14px solid var(--bg4); border-top-color: var(--gold); border-right-color: var(--green2); }
 
@@ -2608,12 +2613,15 @@ function mapHospReservation(r) {
     guests:       r.guests?.total || r.number_of_guests || r.guests_count,
     status:       r.status,
     channel:      r.platform || r.source || r.channel,
-    totalRevenue: r.financials?.host?.revenue?.amount != null ? r.financials.host.revenue.amount / 100 : null,
-    grossRevenue: r.financials?.guest?.total_price?.amount != null ? r.financials.guest.total_price.amount / 100 : null,
-    nightlyRate:  r.financials?.guest?.average_nightly_rate?.amount != null ? r.financials.guest.average_nightly_rate.amount / 100 : null,
-    cleaningFee:  r.financials?.host?.guest_fees?.[0]?.amount != null ? r.financials.host.guest_fees[0].amount / 100 : null,
-    otaFee:       r.money?.guest_service_fee || r.guest_service_fee,
-    currency:     r.money?.currency || 'USD',
+    totalRevenue:   r.financials?.host?.revenue?.amount != null ? r.financials.host.revenue.amount / 100 : null,
+    grossRevenue:   r.financials?.guest?.total_price?.amount != null ? r.financials.guest.total_price.amount / 100 : null,
+    accommodation:  r.financials?.host?.accommodation?.amount != null ? r.financials.host.accommodation.amount / 100 : null,
+    nightlyRate:    r.financials?.guest?.average_nightly_rate?.amount != null ? r.financials.guest.average_nightly_rate.amount / 100 : null,
+    cleaningFee:    r.financials?.host?.guest_fees?.reduce((s,f) => s + f.amount, 0) / 100 || null,
+    hostServiceFee: r.financials?.host?.host_fees?.reduce((s,f) => s + f.amount, 0) / 100 || null,
+    discounts:      r.financials?.host?.discounts?.reduce((s,d) => s + d.amount, 0) / 100 || null,
+    taxes:          r.financials?.guest?.taxes?.reduce((s,t) => s + t.amount, 0) / 100 || null,
+    currency:       r.financials?.currency || 'USD',
     _source:      'hospitable',
     _synced:      new Date().toISOString(),
   };
@@ -3138,7 +3146,7 @@ function calcRevenueStats() {
 
   const byMonth = {};     // past/current actual revenue
   const projByMonth = {}; // future projected revenue (confirmed bookings)
-  let ytdRevenue = 0, ytdGross = 0;
+  let ytdRevenue = 0, ytdGross = 0, ytdServiceFees = 0, ytdTaxes = 0, ytdDiscounts = 0, ytdCleaning = 0;
   let allTimeBest = { key: null, revenue: 0 };
 
   for (const r of reservations) {
@@ -3168,7 +3176,14 @@ function calcRevenueStats() {
       byMonth[key].nights  += nights;
       byMonth[key].count++;
       byMonth[key][ch] = (byMonth[key][ch] || 0) + rev;
-      if (d.getFullYear() === thisYear) { ytdRevenue += rev; ytdGross += parseFloat(r.grossRevenue) || rev; }
+      if (d.getFullYear() === thisYear) {
+        ytdRevenue    += rev;
+        ytdGross      += parseFloat(r.grossRevenue)   || rev;
+        ytdServiceFees += Math.abs(parseFloat(r.hostServiceFee) || 0);
+        ytdTaxes      += parseFloat(r.taxes)          || 0;
+        ytdDiscounts  += Math.abs(parseFloat(r.discounts) || 0);
+        ytdCleaning   += parseFloat(r.cleaningFee)    || 0;
+      }
       if (byMonth[key].revenue > allTimeBest.revenue) allTimeBest = { key, revenue: byMonth[key].revenue };
     }
   }
@@ -3208,6 +3223,7 @@ function calcRevenueStats() {
   return { mtdRevenue: mtd.revenue, mtdAirbnb: mtd.airbnb, mtdDirect: mtd.direct,
            mtdOther: mtd.other + (mtd.vrbo||0), mtdNights: mtd.nights, mtdCount: mtd.count,
            ytdRevenue, ytdGross, ytdFees: Math.max(0, ytdGross - ytdRevenue),
+           ytdServiceFees, ytdTaxes, ytdDiscounts, ytdCleaning,
            occupancy30, adr30, recentNights, directPct, byMonth, projByMonth, allTimeBest,
            pipe30, pipe60, pipe90, pipeNights30, pipeCount90 };
 }
@@ -3256,41 +3272,42 @@ function renderRevenuePage() {
 
   container.innerHTML = `
     <!-- YTD Revenue Hero -->
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card" style="margin-bottom:16px;" id="rev-hero-card">
       <div class="card-body" style="padding:22px 24px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border-right:none;">
-          <div style="padding-right:24px;border-right:1px solid var(--border);">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;">
+          <div class="rev-stat-btn" onclick="toggleRevDetail('gross')" id="revbtn-gross" style="padding-right:24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${now.getFullYear()} Gross Bookings</div>
             <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.ytdGross)}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">what guests paid</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">what guests paid ↗</div>
           </div>
-          <div style="padding:0 24px;border-right:1px solid var(--border);">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Platform Fees & Taxes</div>
+          <div class="rev-stat-btn" onclick="toggleRevDetail('fees')" id="revbtn-fees" style="padding:0 24px;border-right:1px solid var(--border);">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Platform Fees &amp; Taxes</div>
             <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--red);line-height:1;">−${fmt$(rs.ytdFees)}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${feesPct}% of gross</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${feesPct}% of gross ↗</div>
           </div>
-          <div style="padding:0 24px;border-right:1px solid var(--border);">
+          <div class="rev-stat-btn" onclick="toggleRevDetail('net')" id="revbtn-net" style="padding:0 24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Net to You (YTD)</div>
             <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--green2);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${netPct}% kept</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${netPct}% kept ↗</div>
           </div>
-          <div style="padding-left:24px;">
+          <div class="rev-stat-btn" onclick="toggleRevDetail('mtd')" id="revbtn-mtd" style="padding-left:24px;">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${nowMonthName} MTD</div>
             <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.mtdRevenue)}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${rs.mtdCount} reservations</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${rs.mtdCount} reservations ↗</div>
           </div>
         </div>
         <div style="margin-top:18px;">
           <div style="height:8px;background:var(--bg4);border-radius:4px;overflow:hidden;display:flex;">
-            <div style="width:${netPct}%;background:#8AA090;border-radius:4px 0 0 4px;transition:width 0.6s ease;"></div>
-            <div style="width:${feesPct}%;background:var(--red);opacity:0.5;border-radius:0 4px 4px 0;"></div>
+            <div style="width:${netPct}%;background:var(--green);opacity:0.7;border-radius:4px 0 0 4px;transition:width 0.6s ease;"></div>
+            <div style="width:${feesPct}%;background:var(--red);opacity:0.45;border-radius:0 4px 4px 0;"></div>
           </div>
           <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:var(--text3);">
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#8AA090;display:inline-block;"></span>Net to you</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);opacity:0.6;display:inline-block;"></span>Fees &amp; taxes</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block;"></span>Net to you (${netPct}%)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);opacity:0.7;display:inline-block;"></span>Fees &amp; taxes (${feesPct}%)</span>
           </div>
         </div>
       </div>
+      <div id="rev-detail-panel" style="display:none;"></div>
     </div>
 
     <div class="rev-grid">
@@ -3298,9 +3315,9 @@ function renderRevenuePage() {
         <div class="card-head">
           <div class="card-title">Monthly Revenue</div>
           <div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);">
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#A09880;display:inline-block;"></span>Past</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#C4B07A;display:inline-block;"></span>This month</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#8AA090;opacity:0.7;border:1px dashed #8AA090;display:inline-block;"></span>Projected</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--text3);display:inline-block;"></span>Past</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);display:inline-block;"></span>This month</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);opacity:0.7;border:1px dashed var(--green2);display:inline-block;"></span>Projected</span>
           </div>
         </div>
         <div class="rev-bars">
@@ -3361,6 +3378,84 @@ function renderRevenuePage() {
         </div>
       </div>
     </div>`;
+}
+
+// ────────────────────────────────────────────────────────
+//  REVENUE DETAIL PANEL
+// ────────────────────────────────────────────────────────
+
+let _revDetailOpen = null;
+
+function toggleRevDetail(type) {
+  const panel = document.getElementById('rev-detail-panel');
+  if (!panel) return;
+  document.querySelectorAll('.rev-stat-btn').forEach(b => b.classList.remove('active'));
+  if (_revDetailOpen === type) {
+    panel.style.display = 'none';
+    _revDetailOpen = null;
+    return;
+  }
+  _revDetailOpen = type;
+  document.getElementById('revbtn-' + type)?.classList.add('active');
+  const rs = calcRevenueStats();
+  const fmt$ = n => '$' + Math.round(n).toLocaleString();
+  const fmt$d = n => n < 0 ? '−$' + Math.round(Math.abs(n)).toLocaleString() : '$' + Math.round(n).toLocaleString();
+  const now = new Date();
+  const nowMonthName = now.toLocaleDateString('en-US', { month: 'long' });
+  const reservations = db.get('reservations') || [];
+
+  const row = (label, val, color='var(--text2)', note='') =>
+    `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:12px;color:var(--text2);">${label}${note ? `<span style="font-size:10px;color:var(--text3);margin-left:8px;">${note}</span>` : ''}</div>
+      <div style="font-family:'Geist Mono',monospace;font-size:12px;color:${color};font-weight:500;">${val}</div>
+    </div>`;
+
+  let html = '';
+  if (type === 'gross') {
+    const avgBooking = rs.mtdCount > 0 ? rs.ytdGross / (reservations.filter(r => new Date(r.checkIn) <= now && new Date(r.checkIn).getFullYear() === now.getFullYear()).length || 1) : 0;
+    html = `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">${now.getFullYear()} Gross Booking Breakdown</div>
+      ${row('Accommodation charges', fmt$(rs.ytdGross - rs.ytdCleaning), 'var(--text)')}
+      ${row('Cleaning fees collected', fmt$(rs.ytdCleaning), 'var(--text)')}
+      ${row('Guest discounts applied', '−' + fmt$(rs.ytdDiscounts), 'var(--text3)')}
+      ${row('Total gross (guest paid)', fmt$(rs.ytdGross), 'var(--gold2)')}
+      <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Avg booking value ${fmt$(avgBooking)} · ${reservations.filter(r => { const d=new Date(r.checkIn); return d<=now && d.getFullYear()===now.getFullYear(); }).length} reservations YTD</div>`;
+  } else if (type === 'fees') {
+    const effectiveRate = rs.ytdGross > 0 ? ((rs.ytdServiceFees / rs.ytdGross) * 100).toFixed(1) : 0;
+    html = `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Fee &amp; Tax Breakdown — ${now.getFullYear()} YTD</div>
+      ${row('OTA / platform service fees', '−' + fmt$(rs.ytdServiceFees), 'var(--red)', `${effectiveRate}% of gross`)}
+      ${row('Pass-through taxes', fmt$(rs.ytdTaxes), 'var(--text3)', 'remitted to authorities')}
+      ${row('Promotions &amp; discounts', '−' + fmt$(rs.ytdDiscounts), 'var(--text3)', 'host-funded')}
+      ${row('Total deducted from gross', '−' + fmt$(rs.ytdFees), 'var(--red)')}
+      <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">For every $1 guests pay, you keep <strong style="color:var(--green2);">$${(rs.ytdRevenue/Math.max(rs.ytdGross,1)).toFixed(2)}</strong> after all deductions.</div>`;
+  } else if (type === 'net') {
+    const byM = rs.byMonth;
+    const months = Object.keys(byM).filter(k => k.startsWith(now.getFullYear()+'')).sort();
+    html = `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Net Revenue by Month — ${now.getFullYear()}</div>
+      ${months.map(k => {
+        const [,mo] = k.split('-');
+        const label = new Date(now.getFullYear(), parseInt(mo)-1, 1).toLocaleDateString('en-US',{month:'long'});
+        return row(label, fmt$(byM[k].revenue), 'var(--green2)', `${byM[k].count} reservations · ${byM[k].nights} nights`);
+      }).join('')}
+      ${row('YTD Total', fmt$(rs.ytdRevenue), 'var(--green2)')}
+      <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Airbnb ${fmt$(Object.values(byM).filter((_,i)=>Object.keys(byM).sort()[i]?.startsWith(now.getFullYear()+'')).reduce((s,m)=>s+m.airbnb,0))} · Direct ${fmt$(Object.values(byM).filter((_,i)=>Object.keys(byM).sort()[i]?.startsWith(now.getFullYear()+'')).reduce((s,m)=>s+m.direct,0))}</div>`;
+  } else if (type === 'mtd') {
+    const mtdRes = reservations.filter(r => {
+      const d = new Date(r.checkIn);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && d <= now;
+    });
+    html = `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">${nowMonthName} Reservation Detail</div>
+      ${mtdRes.map(r => row(
+        r.guestName || 'Guest',
+        fmt$(r.totalRevenue || 0),
+        'var(--text)',
+        `${r.nights} nights · ${(r.channel||'').toLowerCase()}`
+      )).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0;">No completed reservations this month yet.</div>'}
+      ${row(nowMonthName + ' Total', fmt$(rs.mtdRevenue), 'var(--gold2)')}
+      <div style="margin-top:12px;padding:10px;background:var(--bg4);border-radius:6px;font-size:11px;color:var(--text3);">Airbnb ${fmt$(rs.mtdAirbnb)} · Direct ${fmt$(rs.mtdDirect)} · ${rs.mtdNights} nights booked</div>`;
+  }
+
+  panel.innerHTML = `<div class="rev-detail-panel">${html}</div>`;
+  panel.style.display = 'block';
 }
 
 // ────────────────────────────────────────────────────────
