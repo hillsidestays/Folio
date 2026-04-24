@@ -3281,23 +3281,23 @@ function renderRevenuePage() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;">
           <div class="rev-stat-btn" onclick="toggleRevDetail('gross')" id="revbtn-gross" style="padding-right:24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${now.getFullYear()} Gross Bookings</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">${fmt$(rs.ytdGross)}</div>
-            <div style="font-size:11px;color:var(--text);margin-top:4px;">what guests paid ↗</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.ytdGross)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">what guests paid ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('fees')" id="revbtn-fees" style="padding:0 24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Platform Fees &amp; Taxes</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">−${fmt$(rs.ytdFees)}</div>
-            <div style="font-size:11px;color:var(--text);margin-top:4px;">${feesPct}% of gross ↗</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">−${fmt$(rs.ytdFees)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${feesPct}% of gross ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('net')" id="revbtn-net" style="padding:0 24px;border-right:1px solid var(--border);">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Net to You (YTD)</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
-            <div style="font-size:11px;color:var(--text);margin-top:4px;">${netPct}% kept ↗</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.ytdRevenue)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${netPct}% kept ↗</div>
           </div>
           <div class="rev-stat-btn" onclick="toggleRevDetail('mtd')" id="revbtn-mtd" style="padding-left:24px;">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">${nowMonthName} MTD</div>
-            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--gold2);line-height:1;">${fmt$(rs.mtdRevenue)}</div>
-            <div style="font-size:11px;color:var(--text);margin-top:4px;">${rs.mtdCount} reservations ↗</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:30px;color:var(--text);line-height:1;">${fmt$(rs.mtdRevenue)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">${rs.mtdCount} reservations ↗</div>
           </div>
         </div>
         <div style="margin-top:18px;">
