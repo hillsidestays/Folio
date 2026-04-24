@@ -2623,6 +2623,10 @@ function mapHospReservation(r) {
     if (entries.length === 1) folioId = entries[0][0];
   }
   const propId = folioId || hospPropId;
+  if (r === undefined || !window._debuggedPropId) {
+    console.log('[folio-debug] mapHospReservation sample:', { hospPropId, folioId, propId, map: HOSP_PROP_MAP });
+    window._debuggedPropId = true;
+  }
   return {
     id:           `res_${r.id}`,
     hospId:       r.id,
@@ -3152,6 +3156,7 @@ function calcRevenueStats(propertyId = null) {
       || (db.get('properties') || []).find(p => p.id === propertyId)?.hosp_id
       || (db.get('properties') || []).find(p => p.id === propertyId)?.hospId;
     const matchIds = new Set([propertyId, hospUuid].filter(Boolean));
+    console.log('[folio-debug] filter:', { propertyId, hospUuid, matchIds: [...matchIds], samplePropIds: allReservations.slice(0,3).map(r => r.propertyId || r.property_id) });
     reservations = allReservations.filter(r => matchIds.has(r.propertyId || r.property_id));
   }
   const now = new Date(); now.setHours(0,0,0,0);
