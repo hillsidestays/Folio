@@ -383,7 +383,7 @@ body {
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; display: flex; }
 .bar-fill { height: 100%; border-radius: 4px; background: var(--green2); opacity: 0.75; transition: width 0.5s ease; }
 .bar-fill.present { background: #E8904A; opacity: 1; }
-.bar-fill.projected { background: var(--gold2); opacity: 0.55; border-radius: 4px; }
+.bar-fill.projected { background: var(--gold2); opacity: 0.85; border-radius: 4px; }
 .bar-seg-airbnb { background: var(--red); opacity: 0.85; border-radius: 4px; }
 .bar-seg-direct  { background: var(--green2); opacity: 0.85; border-radius: 4px; }
 .bar-seg-other   { background: var(--text3); opacity: 0.6; border-radius: 4px; }
@@ -3353,8 +3353,8 @@ function renderRevenuePage() {
             ${months.map(m => {
               const isPresent = m.key === thisMonthKey;
               const cls = m.projected ? ' projected' : isPresent ? ' present' : '';
-              const labelColor = m.projected ? 'color:var(--text3);' : isPresent ? 'color:var(--text);font-weight:500;' : '';
-              const valColor = m.projected ? 'color:var(--text3);' : '';
+              const labelColor = isPresent ? 'color:var(--text);font-weight:500;' : '';
+              const valColor = '';
               return `<div class="bar-row">
                 <div class="bar-label" style="width:48px;font-size:10.5px;${labelColor}">${m.label}</div>
                 <div class="bar-track"><div class="bar-fill${cls}" style="width:${m.revenue > 0 ? Math.round((m.revenue/maxRev)*100) : 0}%;"></div></div>
