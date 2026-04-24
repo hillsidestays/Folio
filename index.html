@@ -2687,7 +2687,7 @@ async function connectHospitable() {
     log('Fetching reservations…');
     try {
       const rawRes = await fetchHospitableReservations(hospIds);
-      if (rawRes.length > 0) console.log('[Hospitable] reservation money fields:', JSON.stringify(rawRes[0].money), 'source:', rawRes[0].source, 'channel:', rawRes[0].channel);
+      if (rawRes.length > 0) console.log('[Hospitable] raw reservation:', JSON.stringify(rawRes[0], null, 2));
       const mappedRes = rawRes.map(mapHospReservation);
       db.set('reservations', mappedRes);
       log(`Synced ${mappedRes.length} reservation${mappedRes.length === 1 ? '' : 's'}`, 'ok');
