@@ -381,7 +381,7 @@ body {
 .bar-row { display: flex; align-items: center; gap: 10px; }
 .bar-label { font-size: 11px; color: var(--text2); width: 80px; flex-shrink: 0; text-align: right; }
 .bar-track { flex: 1; height: 20px; background: var(--bg4); border-radius: 4px; position: relative; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 4px; background: var(--text3); opacity: 0.7; transition: width 0.5s ease; }
+.bar-fill { height: 100%; border-radius: 4px; background: #C8763C; opacity: 0.8; transition: width 0.5s ease; }
 .bar-fill.green { background: var(--green2); opacity: 0.9; }
 .bar-fill.present { background: var(--gold2); opacity: 1; }
 .bar-fill.projected { background: var(--green); opacity: 0.6; border: 1px dashed var(--green2); box-sizing: border-box; }
@@ -3220,10 +3220,12 @@ function calcRevenueStats() {
   const adr30        = recentNights > 0 ? Math.round(recentRev / recentNights) : 0;
   const directPct    = mtd.revenue > 0 ? Math.round((mtd.direct / mtd.revenue) * 100) : 0;
 
+  const fullYearProjected = ytdRevenue + Object.values(projByMonth).reduce((s,m) => s + m.revenue, 0);
+
   return { mtdRevenue: mtd.revenue, mtdAirbnb: mtd.airbnb, mtdDirect: mtd.direct,
            mtdOther: mtd.other + (mtd.vrbo||0), mtdNights: mtd.nights, mtdCount: mtd.count,
            ytdRevenue, ytdGross, ytdFees: Math.max(0, ytdGross - ytdRevenue),
-           ytdServiceFees, ytdTaxes, ytdDiscounts, ytdCleaning,
+           ytdServiceFees, ytdTaxes, ytdDiscounts, ytdCleaning, fullYearProjected,
            occupancy30, adr30, recentNights, directPct, byMonth, projByMonth, allTimeBest,
            pipe30, pipe60, pipe90, pipeNights30, pipeCount90 };
 }
@@ -3310,12 +3312,31 @@ function renderRevenuePage() {
       <div id="rev-detail-panel" style="display:none;"></div>
     </div>
 
+    <!-- Year Outlook Banner -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div class="card" style="padding:14px 18px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${now.getFullYear()} Earned (Actual)</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:#C8763C;">${fmt$(rs.ytdRevenue)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Jan – ${nowMonthName}</div>
+      </div>
+      <div class="card" style="padding:14px 18px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Confirmed Pipeline</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--green2);">${fmt$(rs.pipe90 > 0 ? Object.values(rs.projByMonth).reduce((s,m)=>s+m.revenue,0) : 0)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">future bookings on the books</div>
+      </div>
+      <div class="card" style="padding:14px 18px;border:1px solid var(--gold-dim);">
+        <div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${now.getFullYear()} Full-Year Outlook</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:var(--gold2);">${fmt$(rs.fullYearProjected)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">actual + confirmed pipeline</div>
+      </div>
+    </div>
+
     <div class="rev-grid">
       <div class="card">
         <div class="card-head">
           <div class="card-title">Monthly Revenue</div>
           <div style="display:flex;gap:12px;align-items:center;font-size:10px;color:var(--text3);">
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--text3);display:inline-block;"></span>Past</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#C8763C;display:inline-block;"></span>Past</span>
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold2);display:inline-block;"></span>This month</span>
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);opacity:0.7;border:1px dashed var(--green2);display:inline-block;"></span>Projected</span>
           </div>
