@@ -977,6 +977,64 @@ body.demo-active #auth-overlay { padding-top: 36px; }
 .kb-content-input { width: 100%; min-height: 180px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px; color: var(--text); font-size: 13px; font-family: 'Geist', sans-serif; line-height: 1.65; outline: none; resize: vertical; }
 .kb-content-input:focus { border-color: var(--gold); }
 
+/* ── Pricing Module ── */
+@keyframes pricingPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.75); }
+}
+.pricing-live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green2);
+  animation: pricingPulse 2s ease-in-out infinite; flex-shrink: 0;
+}
+.pricing-occ-track {
+  position: relative; height: 20px; background: var(--bg4);
+  border-radius: 4px; overflow: visible; flex: 1;
+}
+.pricing-occ-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.pricing-occ-marker {
+  position: absolute; top: -5px; bottom: -5px; width: 2px;
+  background: var(--border2); left: 50%; pointer-events: none;
+}
+.pricing-occ-marker::after {
+  content: '50%'; position: absolute; top: -17px; left: 50%;
+  transform: translateX(-50%); font-size: 9px; color: var(--text3); white-space: nowrap;
+}
+.pricing-banner {
+  border-radius: var(--radius-sm); padding: 12px 16px; border: 1px solid; margin-top: 14px;
+}
+.pricing-banner.raise { border-color: rgba(74,140,92,0.3); background: var(--green-dim); }
+.pricing-banner.lower { border-color: rgba(194,91,91,0.3); background: var(--red-dim); }
+.pricing-banner.hold  { border-color: rgba(200,168,75,0.3); background: var(--gold-dim); }
+.pricing-settings-toggle {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 11px 20px; font-size: 12px; color: var(--text3);
+  border-top: 1px solid var(--border); user-select: none; transition: color 0.13s;
+}
+.pricing-settings-toggle:hover { color: var(--text); }
+.pricing-settings-body { display: none; padding: 16px 20px; border-top: 1px solid var(--border); }
+.pricing-settings-body.open { display: block; animation: fadeIn 0.15s ease; }
+.pricing-hist-header {
+  display: grid; grid-template-columns: 80px 1fr 55px 55px 80px 90px 70px;
+  gap: 12px; padding: 9px 20px;
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--text3); border-bottom: 1px solid var(--border);
+}
+.pricing-hist-item {
+  display: grid; grid-template-columns: 80px 1fr 55px 55px 80px 90px 70px;
+  gap: 12px; align-items: center; padding: 11px 20px;
+  border-bottom: 1px solid var(--border); font-size: 12px; transition: background 0.1s;
+}
+.pricing-hist-item:hover { background: var(--bg3); }
+.pricing-hist-item:last-child { border-bottom: none; }
+@media (max-width: 768px) {
+  .pricing-hist-header { display: none; }
+  .pricing-hist-item {
+    grid-template-columns: 70px 1fr auto;
+    gap: 8px; padding: 10px 14px;
+  }
+  .pricing-hist-item > *:nth-child(n+4) { display: none; }
+}
+
 /* ── Assignee pills ── */
 .assignee-pill {
   display: inline-flex; align-items: center; gap: 5px;
@@ -1123,6 +1181,7 @@ body.demo-active #auth-overlay { padding-top: 36px; }
     <div class="nav-label">Properties</div>
     <div class="nav-item" onclick="navigate('properties',this)"><span class="nav-icon">⌂</span> Property Hub</div>
     <div class="nav-item" onclick="navigate('revenue',this)"><span class="nav-icon">$</span> Revenue</div>
+    <div class="nav-item" onclick="navigate('pricing',this)"><span class="nav-icon">◈</span> Pricing</div>
     <div class="nav-item" onclick="navigate('maintenance',this)" style="position:relative;"><span class="nav-icon">⚙</span> Maintenance<span class="nav-badge">2</span></div>
   </div>
 
@@ -1775,6 +1834,19 @@ body.demo-active #auth-overlay { padding-top: 36px; }
 
     </div>
 
+    <!-- ════════ PRICING ════════ -->
+    <div class="page" id="page-pricing">
+      <div class="tasks-toolbar" id="pricing-prop-tabs" style="margin-bottom:20px;"></div>
+      <div id="pricing-checkin-card"></div>
+      <div class="card" style="margin-top:20px;" id="pricing-history-wrap">
+        <div class="card-head">
+          <div class="card-title">Check-in History</div>
+          <button class="topbar-btn" onclick="openPricingLogModal()" style="padding:5px 12px;font-size:11.5px;">+ Log Entry</button>
+        </div>
+        <div id="pricing-history-list"></div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </main>
 
@@ -2223,6 +2295,55 @@ body.demo-active #auth-overlay { padding-top: 36px; }
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ── Pricing Log Entry Modal ── -->
+<div class="modal-overlay" id="pricing-log-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Log Check-in</div>
+        <div class="modal-subtitle">Manually record a pricing decision</div>
+      </div>
+      <div class="modal-close" onclick="closeModal('pricing-log-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <div class="form-label">Property *</div>
+          <select class="form-select" id="plog-prop"></select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <div class="form-label">Date</div>
+          <input class="form-input" id="plog-date" type="date">
+        </div>
+        <div class="form-field">
+          <div class="form-label">BLT (days)</div>
+          <input class="form-input" id="plog-blt" type="number" min="1" max="180" placeholder="30">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <div class="form-label">Occupancy %</div>
+          <input class="form-input" id="plog-occ" type="number" min="0" max="100" placeholder="65" oninput="updateLogDecisionPreview()">
+        </div>
+        <div class="form-field">
+          <div class="form-label">Base Price ($/night)</div>
+          <input class="form-input" id="plog-price" type="number" min="1" placeholder="250" oninput="updateLogDecisionPreview()">
+        </div>
+      </div>
+      <div id="plog-decision-preview" style="margin-top:4px;"></div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="closeModal('pricing-log-modal')">Cancel</button>
+        <button class="btn-run" onclick="savePricingLogEntry()">Log Entry →</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2846,6 +2967,7 @@ const PAGE_CONFIG = {
   knowledge:   { title: 'Knowledge Base',   sub: '— SOPs, vendors & docs',          btn1: 'Search',         btn2: '+ Add Entry' },
   seasonal:    { title: 'Seasonal Planner', sub: '— 2026 demand calendar',          btn1: 'Add Event',      btn2: 'Set Alert' },
   techstack:   { title: 'Tech Stack',       sub: () => { const s = db.get('stack')||[]; const active = s.filter(t=>t.status==='active'); const total = active.reduce((sum,t)=>sum+(parseFloat(t.cost)||0),0); return `— ${s.length} tools · $${total.toFixed(2)}/mo` }, btn1: 'Export', btn2: '+ Add Tool' },
+  pricing:     { title: 'Pricing',           sub: '— weekly check-in workflow',      btn1: '↻ Refresh',      btn2: '+ Log Entry' },
   integrations:{ title: 'Integrations',     sub: '— Connect your stack',            btn1: 'View Logs',      btn2: '↻ Sync All' },
 };
 
@@ -2890,6 +3012,7 @@ function navigate(key, navEl) {
   if (key === 'techstack')    renderStackPage();
   if (key === 'knowledge')    renderKBPage();
   if (key === 'revenue')      renderRevenuePage();
+  if (key === 'pricing')      initPricingPage();
 }
 
 function handlePrimaryBtn() {
@@ -2898,10 +3021,12 @@ function handlePrimaryBtn() {
   else if (currentPage === 'tasks') openTaskModal();
   else if (currentPage === 'techstack') openStackModal();
   else if (currentPage === 'knowledge') openKBAdd();
+  else if (currentPage === 'pricing') openPricingLogModal();
   else toast(PAGE_CONFIG[currentPage]?.btn2 + ' — coming soon');
 }
 function handleSecondaryBtn() {
   if (currentPage === 'tasks') openTaskModal();
+  else if (currentPage === 'pricing') fetchPricingOccupancy();
   else toast(PAGE_CONFIG[currentPage]?.btn1 + ' — coming soon');
 }
 
@@ -4825,6 +4950,481 @@ async function deleteKBEntry(id) {
   closeModal('kb-entry-modal');
   toast('Entry deleted');
   renderKBPage();
+}
+
+// ════════════════════════════════════════════════════════
+//  PRICING MODULE
+// ════════════════════════════════════════════════════════
+
+let _pricingInit  = false;
+let _selectedPricingProp = null;
+let _pricingOccCache = {}; // propId → { occ, blt, fetched }
+
+const PRICING_PROP_COLORS = ['#C8A84B','#4A7CC2','#4A8C5C','#C25B5B','#C27A3A','#9A9990'];
+
+function getPricingConfig() {
+  try { return JSON.parse(localStorage.getItem('folio_pricing_config') || '{}'); } catch { return {}; }
+}
+function savePricingConfig(cfg) {
+  localStorage.setItem('folio_pricing_config', JSON.stringify(cfg));
+}
+function getPricingHistory() {
+  try { return JSON.parse(localStorage.getItem('folio_pricing_history') || '[]'); } catch { return []; }
+}
+function savePricingHistory(hist) {
+  localStorage.setItem('folio_pricing_history', JSON.stringify(hist));
+}
+
+function pricingDecision(occ, basePrice) {
+  if (occ > 60) {
+    const newPrice = Math.round((basePrice * 1.1) / 5) * 5;
+    return { decision: 'raise', newPrice, delta: newPrice - basePrice };
+  }
+  if (occ < 40) {
+    const newPrice = Math.round((basePrice * 0.9) / 5) * 5;
+    return { decision: 'lower', newPrice, delta: newPrice - basePrice };
+  }
+  return { decision: 'hold', newPrice: basePrice, delta: 0 };
+}
+
+function getPricingProps() {
+  const props = (db.get('properties') || []).filter(p => !p.status || p.status === 'active' || p.status === 'needs_attention');
+  if (props.length > 0) return props;
+  return [
+    { id: 'prop_lbh', name: 'Lightning Bug Holler', emoji: '🏡' },
+    { id: 'prop_rvr', name: 'Ridge View Retreat', emoji: '⛰️' },
+    { id: 'prop_ccb', name: 'Creekside Cabin', emoji: '🌿' },
+  ];
+}
+
+async function initPricingPage() {
+  const props = getPricingProps();
+  if (!_selectedPricingProp || !props.find(p => p.id === _selectedPricingProp)) {
+    _selectedPricingProp = props[0]?.id || null;
+  }
+  renderPricingPropTabs(props);
+  // Auto-fetch if Hospitable is connected and cache is cold
+  if (_selectedPricingProp && !_pricingOccCache[_selectedPricingProp]) {
+    const reservations = db.get('reservations') || [];
+    if (reservations.length > 0) {
+      const cfg = getPricingConfig();
+      const blt = (cfg[_selectedPricingProp]?.blt) || 30;
+      const occ = calcOccupancyInBLT(_selectedPricingProp, blt, reservations);
+      _pricingOccCache[_selectedPricingProp] = { occ, blt, fetched: new Date().toISOString() };
+    }
+  }
+  renderPricingCheckinCard();
+  renderPricingHistory();
+}
+
+function renderPricingPropTabs(props) {
+  const cfg = getPricingConfig();
+  const container = document.getElementById('pricing-prop-tabs');
+  if (!container) return;
+  container.innerHTML = props.map((p, i) => {
+    const color = cfg[p.id]?.color || PRICING_PROP_COLORS[i % PRICING_PROP_COLORS.length];
+    const isActive = p.id === _selectedPricingProp;
+    return `<button class="filter-chip${isActive ? ' active' : ''}" onclick="selectPricingProp('${p.id}')" style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
+      ${escHtml(p.name)}
+    </button>`;
+  }).join('') + `<div class="spacer"></div>
+    <button class="topbar-btn" onclick="fetchPricingOccupancy()" style="padding:5px 11px;font-size:11px;">↻ Refresh</button>`;
+}
+
+function selectPricingProp(propId) {
+  _selectedPricingProp = propId;
+  const props = getPricingProps();
+  renderPricingPropTabs(props);
+  // Pull from cached reservations if available
+  if (!_pricingOccCache[propId]) {
+    const reservations = db.get('reservations') || [];
+    if (reservations.length > 0) {
+      const cfg = getPricingConfig();
+      const blt = cfg[propId]?.blt || 30;
+      const occ = calcOccupancyInBLT(propId, blt, reservations);
+      _pricingOccCache[propId] = { occ, blt, fetched: new Date().toISOString() };
+    }
+  }
+  renderPricingCheckinCard();
+}
+
+function renderPricingCheckinCard() {
+  const container = document.getElementById('pricing-checkin-card');
+  if (!container || !_selectedPricingProp) return;
+
+  const props = getPricingProps();
+  const prop  = props.find(p => p.id === _selectedPricingProp);
+  if (!prop) return;
+
+  const cfg     = getPricingConfig();
+  const propCfg = cfg[_selectedPricingProp] || {};
+  const blt     = propCfg.blt || 30;
+  const basePrice = propCfg.basePrice || 200;
+  const nextReview = propCfg.nextReview || '';
+
+  const cached = _pricingOccCache[_selectedPricingProp];
+  const occ    = cached?.occ ?? null;
+
+  const bltDate = new Date();
+  bltDate.setDate(bltDate.getDate() + blt);
+  const bltDateStr = bltDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const hasHosp = Object.keys(HOSP_PROP_MAP).length > 0;
+  const hasRes  = (db.get('reservations') || []).length > 0;
+
+  let occBarHtml = '';
+  let decisionHtml = '';
+
+  if (occ !== null) {
+    const occPct = Math.min(100, occ);
+    const fillColor = occ > 60 ? 'var(--green2)' : occ < 40 ? 'var(--red)' : 'var(--gold2)';
+    const deltaVal  = occ - 50;
+    occBarHtml = `
+      <div style="margin:18px 0 8px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);">Occupancy in ${blt}-day window</div>
+          <div style="font-family:'Instrument Serif',serif;font-size:26px;color:var(--text);line-height:1;">${occ}%</div>
+        </div>
+        <div class="pricing-occ-track">
+          <div class="pricing-occ-fill" style="width:${occPct}%;background:${fillColor};"></div>
+          <div class="pricing-occ-marker"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:5px;">
+          <span>0%</span>
+          <span>Target 50% · Delta: <span style="color:${occ >= 50 ? 'var(--green2)' : 'var(--red)'};font-weight:500;">${deltaVal >= 0 ? '+' : ''}${deltaVal}pp</span></span>
+          <span>100%</span>
+        </div>
+      </div>`;
+
+    const { decision, newPrice, delta } = pricingDecision(occ, basePrice);
+    const bannerColor = decision === 'raise' ? 'var(--green2)' : decision === 'lower' ? 'var(--red)' : 'var(--gold2)';
+    const bannerIcon  = decision === 'raise' ? '↑' : decision === 'lower' ? '↓' : '→';
+    const bannerLabel = decision === 'raise' ? 'RAISE PRICE' : decision === 'lower' ? 'LOWER PRICE' : 'HOLD PRICE';
+    const bannerText  = decision === 'raise'
+      ? `Occupancy at ${occ}% exceeds the 60% threshold — demand is strong. Raise base price 10% to capture more revenue.`
+      : decision === 'lower'
+      ? `Occupancy at ${occ}% is below the 40% threshold — demand is soft. Lower base price 10% to stimulate bookings.`
+      : `Occupancy at ${occ}% is within the 40–60% target range. No change recommended this week.`;
+
+    decisionHtml = `
+      <div class="pricing-banner ${decision}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+          <span style="font-size:18px;color:${bannerColor};line-height:1;">${bannerIcon}</span>
+          <div style="font-size:13px;font-weight:600;color:${bannerColor};">${bannerLabel}</div>
+          ${decision !== 'hold' ? `<span style="font-size:12px;color:${bannerColor};margin-left:auto;font-family:'Geist Mono',monospace;">$${basePrice} → $${newPrice} (${delta >= 0 ? '+' : ''}$${delta})</span>` : `<span style="font-size:12px;color:${bannerColor};margin-left:auto;font-family:'Geist Mono',monospace;">$${basePrice} unchanged</span>`}
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.55;">${bannerText}</div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn-run" style="width:100%;" onclick="logPricingCheckin()">Log this check-in →</button>
+      </div>`;
+  } else if (!hasHosp && !hasRes) {
+    occBarHtml = `<div style="height:20px;background:var(--bg4);border-radius:4px;margin:18px 0 10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);">No data — connect Hospitable or log manually</div>`;
+    decisionHtml = `
+      <div class="api-notice" style="margin-top:4px;">
+        ⚠ Hospitable not connected — live occupancy unavailable.
+        <span style="cursor:pointer;text-decoration:underline;margin-left:4px;" onclick="navigate('integrations',null)">Connect →</span>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn-secondary" style="width:100%;" onclick="openPricingLogModal()">+ Log Entry Manually</button>
+      </div>`;
+  } else {
+    occBarHtml = `<div style="height:20px;background:var(--bg4);border-radius:4px;margin:18px 0 10px;"></div>`;
+    decisionHtml = `<div style="margin-top:12px;"><button class="btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="fetchPricingOccupancy()"><div class="gen-spinner" style="width:12px;height:12px;flex-shrink:0;"></div>Load occupancy data</button></div>`;
+  }
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="pricing-live-dot"></div>
+          <div class="card-title">Live Check-in · ${escHtml(prop.name)}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">BLT Window</div>
+            <div style="font-size:15px;font-weight:500;color:var(--text);">${blt} days</div>
+            <div style="font-size:10px;color:var(--text3);">through ${bltDateStr}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Target</div>
+            <div style="font-size:15px;font-weight:500;color:var(--text);">50%</div>
+            <div style="font-size:10px;color:var(--text3);">${occ !== null ? `${occ >= 50 ? '+' : ''}${occ - 50}pp delta` : '—'}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Base Price</div>
+            <div style="font-size:15px;font-weight:500;color:var(--gold2);">$${basePrice}</div>
+            <div style="font-size:10px;color:var(--text3);">${nextReview ? 'Review ' + nextReview : 'per night'}</div>
+          </div>
+        </div>
+        ${occBarHtml}
+        ${decisionHtml}
+      </div>
+      <div>
+        <div class="pricing-settings-toggle" onclick="togglePricingSettings()">
+          <span style="font-size:11px;opacity:0.6;">⚙</span>
+          <span>Property Settings</span>
+          <span id="pricing-settings-chevron" style="margin-left:auto;font-size:10px;transition:transform 0.15s;">▾</span>
+        </div>
+        <div class="pricing-settings-body" id="pricing-settings-body">
+          <div class="form-row cols-3">
+            <div class="form-field">
+              <div class="form-label">Booking Lead Time (days)</div>
+              <input class="form-input" id="pcfg-blt" type="number" min="1" max="180" value="${blt}" placeholder="30">
+            </div>
+            <div class="form-field">
+              <div class="form-label">Base Price ($/night)</div>
+              <input class="form-input" id="pcfg-price" type="number" min="1" value="${basePrice}" placeholder="200">
+            </div>
+            <div class="form-field">
+              <div class="form-label">Next Review Date</div>
+              <input class="form-input" id="pcfg-review" type="date" value="${nextReview}">
+            </div>
+          </div>
+          <button class="btn-run" onclick="savePricingPropertyConfig()">Save Settings →</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function togglePricingSettings() {
+  const body = document.getElementById('pricing-settings-body');
+  const chev = document.getElementById('pricing-settings-chevron');
+  if (!body) return;
+  const isOpen = body.classList.toggle('open');
+  if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
+}
+
+function savePricingPropertyConfig() {
+  const blt       = parseInt(document.getElementById('pcfg-blt')?.value) || 30;
+  const basePrice = parseInt(document.getElementById('pcfg-price')?.value) || 200;
+  const nextReview = document.getElementById('pcfg-review')?.value || '';
+  const props = getPricingProps();
+  const prop  = props.find(p => p.id === _selectedPricingProp);
+  const cfg   = getPricingConfig();
+  cfg[_selectedPricingProp] = { ...(cfg[_selectedPricingProp] || {}), blt, basePrice, nextReview, name: prop?.name || '' };
+  savePricingConfig(cfg);
+  delete _pricingOccCache[_selectedPricingProp]; // stale — recalc on next render
+  toast('✓ Settings saved');
+  renderPricingCheckinCard();
+}
+
+async function fetchPricingOccupancy() {
+  const propId = _selectedPricingProp;
+  if (!propId) return;
+  const cfg = getPricingConfig();
+  const blt = cfg[propId]?.blt || 30;
+
+  // Use cached reservations first
+  const reservations = db.get('reservations') || [];
+  if (reservations.length > 0) {
+    const occ = calcOccupancyInBLT(propId, blt, reservations);
+    _pricingOccCache[propId] = { occ, blt, fetched: new Date().toISOString() };
+    renderPricingCheckinCard();
+    toast('✓ Occupancy updated from synced data');
+    return;
+  }
+
+  const hasHosp = Object.keys(HOSP_PROP_MAP).length > 0;
+  if (!hasHosp) { toast('Connect Hospitable to fetch live occupancy'); return; }
+
+  toast('Fetching occupancy from Hospitable…');
+  try {
+    const hospId = HOSP_PROP_MAP[propId];
+    const fmt = d => d.toISOString().slice(0, 10);
+    const start = new Date();
+    const end   = new Date(); end.setDate(end.getDate() + blt);
+    const arrayParams = { ...(hospId ? { 'properties[]': [hospId] } : {}), 'include[]': ['financials'] };
+    const rawRes  = await hospFetchAll('/reservations', { start_date: fmt(start), end_date: fmt(end) }, arrayParams);
+    const mapped  = rawRes.map(mapHospReservation);
+    const allRes  = [...(db.get('reservations') || []).filter(r => r.propertyId !== propId), ...mapped];
+    const occ     = calcOccupancyInBLT(propId, blt, allRes);
+    _pricingOccCache[propId] = { occ, blt, fetched: new Date().toISOString() };
+    toast('✓ Occupancy updated');
+    renderPricingCheckinCard();
+  } catch (err) {
+    toast('✕ Fetch failed: ' + err.message);
+  }
+}
+
+function calcOccupancyInBLT(propId, blt, reservations) {
+  const SKIP = ['denied','declined','cancelled','canceled','no_show'];
+  const today   = new Date(); today.setHours(0, 0, 0, 0);
+  const endDate = new Date(today); endDate.setDate(endDate.getDate() + blt);
+  const hospId  = HOSP_PROP_MAP[propId];
+  const matchIds = new Set([propId, hospId].filter(Boolean));
+
+  let bookedNights = 0;
+  for (const r of reservations) {
+    if (SKIP.includes((r.status || '').toLowerCase())) continue;
+    if (!matchIds.has(r.propertyId) && !matchIds.has(r.property_id)) continue;
+    if (!r.checkIn) continue;
+    const checkIn  = new Date(r.checkIn);
+    const nights   = parseInt(r.nights) || 1;
+    const checkOut = new Date(checkIn); checkOut.setDate(checkOut.getDate() + nights);
+    const overlapStart = checkIn  > today   ? checkIn  : today;
+    const overlapEnd   = checkOut < endDate ? checkOut : endDate;
+    const overlap = Math.max(0, Math.round((overlapEnd - overlapStart) / 86400000));
+    bookedNights += overlap;
+  }
+  return Math.min(100, Math.round((bookedNights / blt) * 100));
+}
+
+function logPricingCheckin() {
+  const propId = _selectedPricingProp;
+  if (!propId) return;
+  const cached = _pricingOccCache[propId];
+  if (!cached) { toast('No occupancy data — click Refresh first'); return; }
+
+  const cfg       = getPricingConfig();
+  const propCfg   = cfg[propId] || {};
+  const basePrice = propCfg.basePrice || 200;
+  const occ       = cached.occ;
+  const { decision, newPrice } = pricingDecision(occ, basePrice);
+
+  const props = getPricingProps();
+  const prop  = props.find(p => p.id === propId);
+
+  const entry = {
+    id:        'chk_' + Date.now(),
+    date:      new Date().toISOString().slice(0, 10),
+    propId,
+    propName:  prop?.name || propId,
+    occ,
+    blt:       cached.blt || propCfg.blt || 30,
+    basePrice,
+    decision,
+    newPrice,
+    auto:      false,
+  };
+
+  const hist = getPricingHistory();
+  hist.unshift(entry);
+  savePricingHistory(hist);
+
+  if (decision !== 'hold') {
+    cfg[propId] = { ...(cfg[propId] || {}), basePrice: newPrice };
+    savePricingConfig(cfg);
+    delete _pricingOccCache[propId];
+  }
+
+  const label = decision === 'raise' ? '↑ Raised' : decision === 'lower' ? '↓ Lowered' : '→ Hold';
+  toast(`✓ Check-in logged — ${label} to $${newPrice}`);
+  renderPricingCheckinCard();
+  renderPricingHistory();
+}
+
+function renderPricingHistory() {
+  const container = document.getElementById('pricing-history-list');
+  if (!container) return;
+  const hist = getPricingHistory();
+
+  if (hist.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:44px 20px;">
+      <div class="empty-icon" style="font-size:22px;">◈</div>
+      <div class="empty-title">No check-ins logged yet</div>
+      <div class="empty-sub">Run your first pricing check-in above to start building history.</div>
+    </div>`;
+    return;
+  }
+
+  const decisionPill = {
+    raise: `<span class="pill pill-green">↑ Raise</span>`,
+    lower: `<span class="pill pill-red">↓ Lower</span>`,
+    hold:  `<span class="pill pill-gold">→ Hold</span>`,
+  };
+
+  container.innerHTML = `
+    <div class="pricing-hist-header">
+      <div>Date</div><div>Property</div><div>Occ%</div><div>BLT</div><div>Base Price</div><div>Decision</div><div>New Price</div>
+    </div>
+    ${hist.map(e => `
+      <div class="pricing-hist-item">
+        <div style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--text3);">${e.date}</div>
+        <div style="color:var(--text);">${escHtml(e.propName || e.propId)}</div>
+        <div style="font-family:'Geist Mono',monospace;">${e.occ}%</div>
+        <div style="font-family:'Geist Mono',monospace;">${e.blt}d</div>
+        <div style="font-family:'Geist Mono',monospace;">$${e.basePrice}</div>
+        <div>${decisionPill[e.decision] || ''}</div>
+        <div style="font-family:'Geist Mono',monospace;color:${e.decision === 'raise' ? 'var(--green2)' : e.decision === 'lower' ? 'var(--red)' : 'var(--text2)'};">$${e.newPrice}</div>
+      </div>`).join('')}`;
+}
+
+// ── Pricing Log Modal ────────────────────────────────────
+
+function openPricingLogModal() {
+  const props = getPricingProps();
+  const sel   = document.getElementById('plog-prop');
+  if (sel) sel.innerHTML = props.map(p =>
+    `<option value="${p.id}"${p.id === _selectedPricingProp ? ' selected' : ''}>${escHtml(p.name)}</option>`
+  ).join('');
+
+  const cfg     = getPricingConfig();
+  const propCfg = cfg[_selectedPricingProp] || {};
+
+  const di = document.getElementById('plog-date');
+  if (di) di.value = new Date().toISOString().slice(0, 10);
+  const bi = document.getElementById('plog-blt');
+  if (bi) bi.value = propCfg.blt || 30;
+  const pi = document.getElementById('plog-price');
+  if (pi) pi.value = propCfg.basePrice || 200;
+  const oi = document.getElementById('plog-occ');
+  if (oi) oi.value = '';
+  const prev = document.getElementById('plog-decision-preview');
+  if (prev) prev.innerHTML = '';
+
+  openModal('pricing-log-modal');
+}
+
+function updateLogDecisionPreview() {
+  const occ   = parseInt(document.getElementById('plog-occ')?.value);
+  const price = parseInt(document.getElementById('plog-price')?.value);
+  const prev  = document.getElementById('plog-decision-preview');
+  if (!prev || isNaN(occ) || isNaN(price) || occ < 0 || occ > 100 || price < 1) return;
+
+  const { decision, newPrice, delta } = pricingDecision(occ, price);
+  const color = decision === 'raise' ? 'var(--green2)' : decision === 'lower' ? 'var(--red)' : 'var(--gold2)';
+  const label = decision === 'raise' ? '↑ Raise' : decision === 'lower' ? '↓ Lower' : '→ Hold';
+  prev.innerHTML = `<div style="padding:8px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="color:${color};font-weight:600;">${label}</span>
+    <span style="color:var(--text2);">$${price} → $${newPrice}</span>
+    ${delta !== 0 ? `<span style="color:${color};font-family:'Geist Mono',monospace;">${delta > 0 ? '+' : ''}$${delta}</span>` : ''}
+  </div>`;
+}
+
+function savePricingLogEntry() {
+  const propId    = document.getElementById('plog-prop')?.value;
+  const date      = document.getElementById('plog-date')?.value || new Date().toISOString().slice(0, 10);
+  const blt       = parseInt(document.getElementById('plog-blt')?.value) || 30;
+  const occ       = parseInt(document.getElementById('plog-occ')?.value);
+  const basePrice = parseInt(document.getElementById('plog-price')?.value);
+
+  if (!propId)                      { toast('Select a property'); return; }
+  if (isNaN(occ) || occ < 0 || occ > 100) { toast('Enter a valid occupancy % (0–100)'); return; }
+  if (isNaN(basePrice) || basePrice < 1)   { toast('Enter a valid base price'); return; }
+
+  const props = getPricingProps();
+  const prop  = props.find(p => p.id === propId);
+  const { decision, newPrice } = pricingDecision(occ, basePrice);
+
+  const entry = {
+    id: 'chk_' + Date.now(),
+    date, propId,
+    propName:  prop?.name || propId,
+    occ, blt, basePrice,
+    decision, newPrice, auto: false,
+  };
+
+  const hist = getPricingHistory();
+  hist.unshift(entry);
+  savePricingHistory(hist);
+
+  closeModal('pricing-log-modal');
+  toast('✓ Check-in logged');
+  renderPricingHistory();
 }
 
 // ════════════════════════════════════════════════════════
