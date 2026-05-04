@@ -2322,7 +2322,7 @@ body.demo-active #auth-overlay { padding-top: 36px; }
         </div>
         <div class="form-field">
           <div class="form-label">BLT (days)</div>
-          <input class="form-input" id="plog-blt" type="number" min="1" max="180" placeholder="30">
+          <input class="form-input" id="plog-blt" type="number" min="1" max="180" placeholder="60">
         </div>
       </div>
       <div class="form-row cols-2">
@@ -5008,9 +5008,9 @@ async function initPricingPage() {
     const reservations = db.get('reservations') || [];
     if (reservations.length > 0) {
       const cfg = getPricingConfig();
-      const blt = (cfg[_selectedPricingProp]?.blt) || 30;
-      const occ = calcOccupancyInBLT(_selectedPricingProp, blt, reservations);
-      _pricingOccCache[_selectedPricingProp] = { occ, blt, fetched: new Date().toISOString() };
+      const blt = cfg[_selectedPricingProp]?.blt || 60;
+      const { occ, bookedNights, totalNights } = calcOccupancyInBLT(_selectedPricingProp, blt, reservations);
+      _pricingOccCache[_selectedPricingProp] = { occ, bookedNights, totalNights, blt, fetched: new Date().toISOString() };
     }
   }
   renderPricingCheckinCard();
@@ -5041,9 +5041,9 @@ function selectPricingProp(propId) {
     const reservations = db.get('reservations') || [];
     if (reservations.length > 0) {
       const cfg = getPricingConfig();
-      const blt = cfg[propId]?.blt || 30;
-      const occ = calcOccupancyInBLT(propId, blt, reservations);
-      _pricingOccCache[propId] = { occ, blt, fetched: new Date().toISOString() };
+      const blt = cfg[propId]?.blt || 60;
+      const { occ, bookedNights, totalNights } = calcOccupancyInBLT(propId, blt, reservations);
+      _pricingOccCache[propId] = { occ, bookedNights, totalNights, blt, fetched: new Date().toISOString() };
     }
   }
   renderPricingCheckinCard();
@@ -5059,12 +5059,15 @@ function renderPricingCheckinCard() {
 
   const cfg     = getPricingConfig();
   const propCfg = cfg[_selectedPricingProp] || {};
-  const blt     = propCfg.blt || 30;
+  const blt     = propCfg.blt || 60;
   const basePrice = propCfg.basePrice || 200;
   const nextReview = propCfg.nextReview || '';
+  const bltConfigured = !!propCfg.bltConfigured;
 
   const cached = _pricingOccCache[_selectedPricingProp];
-  const occ    = cached?.occ ?? null;
+  const occ          = cached?.occ ?? null;
+  const bookedNights = cached?.bookedNights ?? null;
+  const totalNights  = cached?.totalNights ?? blt;
 
   const bltDate = new Date();
   bltDate.setDate(bltDate.getDate() + blt);
@@ -5076,14 +5079,28 @@ function renderPricingCheckinCard() {
   let occBarHtml = '';
   let decisionHtml = '';
 
-  if (occ !== null) {
+  if (!bltConfigured) {
+    occBarHtml = `<div style="height:4px;background:var(--bg4);border-radius:4px;margin:18px 0 10px;"></div>`;
+    decisionHtml = `
+      <div style="background:var(--bg3);border:1px solid var(--gold-dim);border-radius:var(--radius);padding:14px 16px;margin-top:4px;">
+        <div style="font-size:12px;font-weight:600;color:var(--gold2);margin-bottom:6px;">⚠ Set your Booking Lead Time first</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;">
+          Your BLT is how far in advance your guests typically book — this is the correct forward window to use for pricing decisions, not a fixed 30 days.
+          Find it in <strong style="color:var(--text);">Airbnb → Performance → Insights → Conversion tab</strong> (last 90 days). For Smoky Mountain properties it's usually 60–90 days.
+        </div>
+        <button class="btn-secondary" style="font-size:11px;" onclick="togglePricingSettings();document.getElementById('pcfg-blt')?.focus()">Open Settings to set BLT →</button>
+      </div>`;
+  } else if (occ !== null) {
     const occPct = Math.min(100, occ);
     const fillColor = occ > 60 ? 'var(--green2)' : occ < 40 ? 'var(--red)' : 'var(--gold2)';
     const deltaVal  = occ - 50;
     occBarHtml = `
       <div style="margin:18px 0 8px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);">Occupancy in ${blt}-day window</div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);">
+            Forward occupancy · next ${blt} days
+            ${bookedNights !== null ? `<span style="font-weight:500;color:var(--text2);margin-left:6px;">(${bookedNights} of ${totalNights} nights booked)</span>` : ''}
+          </div>
           <div style="font-family:'Instrument Serif',serif;font-size:26px;color:var(--text);line-height:1;">${occ}%</div>
         </div>
         <div class="pricing-occ-track">
@@ -5102,10 +5119,10 @@ function renderPricingCheckinCard() {
     const bannerIcon  = decision === 'raise' ? '↑' : decision === 'lower' ? '↓' : '→';
     const bannerLabel = decision === 'raise' ? 'RAISE PRICE' : decision === 'lower' ? 'LOWER PRICE' : 'HOLD PRICE';
     const bannerText  = decision === 'raise'
-      ? `Occupancy at ${occ}% exceeds the 60% threshold — demand is strong. Raise base price 10% to capture more revenue.`
+      ? `${occ}% of the next ${blt} days are booked — above the 60% threshold. Demand is strong; raise base price 10% to capture more revenue.`
       : decision === 'lower'
-      ? `Occupancy at ${occ}% is below the 40% threshold — demand is soft. Lower base price 10% to stimulate bookings.`
-      : `Occupancy at ${occ}% is within the 40–60% target range. No change recommended this week.`;
+      ? `${occ}% of the next ${blt} days are booked — below the 40% threshold. Demand is soft; lower base price 10% to stimulate bookings.`
+      : `${occ}% of the next ${blt} days are booked — within the 40–60% target range. No change recommended this week.`;
 
     decisionHtml = `
       <div class="pricing-banner ${decision}">
@@ -5146,13 +5163,13 @@ function renderPricingCheckinCard() {
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
           <div>
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">BLT Window</div>
-            <div style="font-size:15px;font-weight:500;color:var(--text);">${blt} days</div>
+            <div style="font-size:15px;font-weight:500;color:${bltConfigured ? 'var(--text)' : 'var(--gold2)'};">${blt} days${bltConfigured ? '' : ' *'}</div>
             <div style="font-size:10px;color:var(--text3);">through ${bltDateStr}</div>
           </div>
           <div>
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Target</div>
             <div style="font-size:15px;font-weight:500;color:var(--text);">50%</div>
-            <div style="font-size:10px;color:var(--text3);">${occ !== null ? `${occ >= 50 ? '+' : ''}${occ - 50}pp delta` : '—'}</div>
+            <div style="font-size:10px;color:var(--text3);">${occ !== null && bltConfigured ? `${occ >= 50 ? '+' : ''}${occ - 50}pp delta` : '—'}</div>
           </div>
           <div>
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Base Price</div>
@@ -5173,7 +5190,8 @@ function renderPricingCheckinCard() {
           <div class="form-row cols-3">
             <div class="form-field">
               <div class="form-label">Booking Lead Time (days)</div>
-              <input class="form-input" id="pcfg-blt" type="number" min="1" max="180" value="${blt}" placeholder="30">
+              <input class="form-input" id="pcfg-blt" type="number" min="1" max="180" value="${blt}" placeholder="60">
+              <div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.5;">Find in Airbnb → Performance → Insights → Conversion tab (last 90 days). Re-check quarterly.</div>
             </div>
             <div class="form-field">
               <div class="form-label">Base Price ($/night)</div>
@@ -5199,13 +5217,13 @@ function togglePricingSettings() {
 }
 
 function savePricingPropertyConfig() {
-  const blt       = parseInt(document.getElementById('pcfg-blt')?.value) || 30;
+  const blt       = parseInt(document.getElementById('pcfg-blt')?.value) || 60;
   const basePrice = parseInt(document.getElementById('pcfg-price')?.value) || 200;
   const nextReview = document.getElementById('pcfg-review')?.value || '';
   const props = getPricingProps();
   const prop  = props.find(p => p.id === _selectedPricingProp);
   const cfg   = getPricingConfig();
-  cfg[_selectedPricingProp] = { ...(cfg[_selectedPricingProp] || {}), blt, basePrice, nextReview, name: prop?.name || '' };
+  cfg[_selectedPricingProp] = { ...(cfg[_selectedPricingProp] || {}), blt, basePrice, nextReview, name: prop?.name || '', bltConfigured: true };
   savePricingConfig(cfg);
   delete _pricingOccCache[_selectedPricingProp]; // stale — recalc on next render
   toast('✓ Settings saved');
@@ -5216,13 +5234,13 @@ async function fetchPricingOccupancy() {
   const propId = _selectedPricingProp;
   if (!propId) return;
   const cfg = getPricingConfig();
-  const blt = cfg[propId]?.blt || 30;
+  const blt = cfg[propId]?.blt || 60;
 
   // Use cached reservations first
   const reservations = db.get('reservations') || [];
   if (reservations.length > 0) {
-    const occ = calcOccupancyInBLT(propId, blt, reservations);
-    _pricingOccCache[propId] = { occ, blt, fetched: new Date().toISOString() };
+    const { occ, bookedNights, totalNights } = calcOccupancyInBLT(propId, blt, reservations);
+    _pricingOccCache[propId] = { occ, bookedNights, totalNights, blt, fetched: new Date().toISOString() };
     renderPricingCheckinCard();
     toast('✓ Occupancy updated from synced data');
     return;
@@ -5241,8 +5259,8 @@ async function fetchPricingOccupancy() {
     const rawRes  = await hospFetchAll('/reservations', { start_date: fmt(start), end_date: fmt(end) }, arrayParams);
     const mapped  = rawRes.map(mapHospReservation);
     const allRes  = [...(db.get('reservations') || []).filter(r => r.propertyId !== propId), ...mapped];
-    const occ     = calcOccupancyInBLT(propId, blt, allRes);
-    _pricingOccCache[propId] = { occ, blt, fetched: new Date().toISOString() };
+    const { occ, bookedNights, totalNights } = calcOccupancyInBLT(propId, blt, allRes);
+    _pricingOccCache[propId] = { occ, bookedNights, totalNights, blt, fetched: new Date().toISOString() };
     toast('✓ Occupancy updated');
     renderPricingCheckinCard();
   } catch (err) {
@@ -5270,7 +5288,8 @@ function calcOccupancyInBLT(propId, blt, reservations) {
     const overlap = Math.max(0, Math.round((overlapEnd - overlapStart) / 86400000));
     bookedNights += overlap;
   }
-  return Math.min(100, Math.round((bookedNights / blt) * 100));
+  const occ = Math.min(100, Math.round((bookedNights / blt) * 100));
+  return { occ, bookedNights, totalNights: blt };
 }
 
 function logPricingCheckin() {
@@ -5294,7 +5313,7 @@ function logPricingCheckin() {
     propId,
     propName:  prop?.name || propId,
     occ,
-    blt:       cached.blt || propCfg.blt || 30,
+    blt:       cached.blt || propCfg.blt || 60,
     basePrice,
     decision,
     newPrice,
@@ -5368,7 +5387,7 @@ function openPricingLogModal() {
   const di = document.getElementById('plog-date');
   if (di) di.value = new Date().toISOString().slice(0, 10);
   const bi = document.getElementById('plog-blt');
-  if (bi) bi.value = propCfg.blt || 30;
+  if (bi) bi.value = propCfg.blt || 60;
   const pi = document.getElementById('plog-price');
   if (pi) pi.value = propCfg.basePrice || 200;
   const oi = document.getElementById('plog-occ');
@@ -5398,7 +5417,7 @@ function updateLogDecisionPreview() {
 function savePricingLogEntry() {
   const propId    = document.getElementById('plog-prop')?.value;
   const date      = document.getElementById('plog-date')?.value || new Date().toISOString().slice(0, 10);
-  const blt       = parseInt(document.getElementById('plog-blt')?.value) || 30;
+  const blt       = parseInt(document.getElementById('plog-blt')?.value) || 60;
   const occ       = parseInt(document.getElementById('plog-occ')?.value);
   const basePrice = parseInt(document.getElementById('plog-price')?.value);
 
