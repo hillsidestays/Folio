@@ -4975,16 +4975,18 @@ function savePricingHistory(hist) {
   localStorage.setItem('folio_pricing_history', JSON.stringify(hist));
 }
 
-function pricingDecision(occ, basePrice) {
+function pricingDecision(occ, basePrice, minPrice = 0) {
   if (occ > 60) {
     const newPrice = Math.round((basePrice * 1.1) / 5) * 5;
-    return { decision: 'raise', newPrice, delta: newPrice - basePrice };
+    return { decision: 'raise', newPrice, delta: newPrice - basePrice, atFloor: false };
   }
   if (occ < 40) {
-    const newPrice = Math.round((basePrice * 0.9) / 5) * 5;
-    return { decision: 'lower', newPrice, delta: newPrice - basePrice };
+    const rawPrice = Math.round((basePrice * 0.9) / 5) * 5;
+    const newPrice = minPrice > 0 ? Math.max(minPrice, rawPrice) : rawPrice;
+    const atFloor  = minPrice > 0 && newPrice === minPrice && rawPrice < minPrice;
+    return { decision: 'lower', newPrice, delta: newPrice - basePrice, atFloor };
   }
-  return { decision: 'hold', newPrice: basePrice, delta: 0 };
+  return { decision: 'hold', newPrice: basePrice, delta: 0, atFloor: false };
 }
 
 function getPricingProps() {
@@ -5057,15 +5059,16 @@ function renderPricingCheckinCard() {
   const prop  = props.find(p => p.id === _selectedPricingProp);
   if (!prop) return;
 
-  const cfg     = getPricingConfig();
-  const propCfg = cfg[_selectedPricingProp] || {};
-  const blt     = propCfg.blt || 60;
-  const basePrice = propCfg.basePrice || 200;
+  const cfg        = getPricingConfig();
+  const propCfg    = cfg[_selectedPricingProp] || {};
+  const blt        = propCfg.blt || 60;
+  const basePrice  = propCfg.basePrice || 200;
+  const minPrice   = propCfg.minPrice  || 0;
   const nextReview = propCfg.nextReview || '';
   const bltConfigured = !!propCfg.bltConfigured;
 
-  const cached = _pricingOccCache[_selectedPricingProp];
-  const occ          = cached?.occ ?? null;
+  const cached       = _pricingOccCache[_selectedPricingProp];
+  const bltOcc       = cached?.occ ?? null;
   const bookedNights = cached?.bookedNights ?? null;
   const totalNights  = cached?.totalNights ?? blt;
 
@@ -5073,58 +5076,95 @@ function renderPricingCheckinCard() {
   bltDate.setDate(bltDate.getDate() + blt);
   const bltDateStr = bltDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+  const reservations = db.get('reservations') || [];
   const hasHosp = Object.keys(HOSP_PROP_MAP).length > 0;
-  const hasRes  = (db.get('reservations') || []).length > 0;
+  const hasRes  = reservations.length > 0;
 
-  let occBarHtml = '';
-  let decisionHtml = '';
+  // ── Multi-horizon occupancy breakdown ───────────────────────────────────────
+  const halfBlt = Math.max(1, Math.round(blt / 2));
+  let horizonsHtml = '';
+
+  if (hasRes) {
+    const hTomorrow = calcOccupancyInBLT(_selectedPricingProp, 1, reservations);
+    const hHalf     = calcOccupancyInBLT(_selectedPricingProp, halfBlt, reservations);
+    const hBlt      = bltOcc !== null
+      ? { occ: bltOcc, bookedNights, totalNights }
+      : calcOccupancyInBLT(_selectedPricingProp, blt, reservations);
+    const hFar      = calcOccupancyInBLT(_selectedPricingProp, 120, reservations);
+
+    const hCells = [
+      {
+        label: 'Tomorrow',  sub: '1 day out',
+        occ: hTomorrow.occ,
+        color: hTomorrow.occ >= 90 ? 'var(--green2)' : hTomorrow.occ >= 50 ? 'var(--gold2)' : 'var(--red)',
+        note:  hTomorrow.occ >= 90 ? '✓ Booked' : hTomorrow.occ > 0 ? 'Partial' : 'Open',
+      },
+      {
+        label: `~${halfBlt} days`, sub: '½ BLT',
+        occ: hHalf.occ,
+        color: hHalf.occ >= 65 ? 'var(--green2)' : hHalf.occ >= 40 ? 'var(--gold2)' : 'var(--red)',
+        note:  hHalf.occ >= 65 ? '↑ Filling' : hHalf.occ >= 40 ? 'On pace' : 'Slow',
+      },
+      {
+        label: `${blt} days`, sub: 'BLT — your check-in', primary: true,
+        occ: hBlt.occ,
+        booked: hBlt.bookedNights, total: hBlt.totalNights,
+        color: hBlt.occ > 60 ? 'var(--green2)' : hBlt.occ >= 40 ? 'var(--gold2)' : 'var(--red)',
+        note:  hBlt.occ > 60 ? '↑ Strong' : hBlt.occ >= 40 ? '✓ Target' : '↓ Soft',
+      },
+      {
+        label: '120 days', sub: 'Extended',
+        occ: hFar.occ,
+        color: hFar.occ < 50 ? 'var(--green2)' : hFar.occ < 70 ? 'var(--gold2)' : 'var(--amber)',
+        note:  hFar.occ < 50 ? '✓ Normal' : hFar.occ < 70 ? 'Strong' : 'Exceptional',
+      },
+    ];
+
+    horizonsHtml = `
+      <div style="margin:18px 0 14px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:10px;">Occupancy at a glance</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+          ${hCells.map(h => `
+            <div style="padding:10px 8px;border-radius:var(--radius-sm);background:var(--bg3);${h.primary ? 'border:1px solid var(--border2);' : ''}">
+              <div style="font-size:9px;font-weight:${h.primary ? 600 : 400};color:${h.primary ? 'var(--text)' : 'var(--text3)'};margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.label}${h.primary ? ' ★' : ''}</div>
+              <div style="font-size:9px;color:var(--text3);margin-bottom:7px;">${h.sub}</div>
+              <div style="font-size:${h.primary ? '20px' : '16px'};font-family:'Geist Mono',monospace;font-weight:600;color:${h.color};line-height:1;">${h.occ}%</div>
+              <div style="height:3px;background:var(--bg4);border-radius:2px;margin:6px 0 5px;overflow:hidden;">
+                <div style="height:3px;width:${Math.min(100, h.occ)}%;background:${h.color};border-radius:2px;"></div>
+              </div>
+              <div style="font-size:9px;color:${h.color};">${h.note}</div>
+              ${h.primary && h.booked != null ? `<div style="font-size:9px;color:var(--text3);margin-top:3px;">${h.booked}/${h.total} nights</div>` : ''}
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  // ── BLT setup warning ───────────────────────────────────────────────────────
   let bltWarningHtml = '';
-
-  // Soft warning — shown whenever BLT hasn't been explicitly set by the operator
   if (!bltConfigured) {
     bltWarningHtml = `
       <div style="background:var(--bg3);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;">
         <span style="color:var(--gold2);font-size:13px;flex-shrink:0;margin-top:1px;">⚠</span>
         <div style="font-size:11px;color:var(--text2);line-height:1.55;">
           <strong style="color:var(--gold2);">BLT not configured</strong> — showing default ${blt}-day window.
-          Find your actual BLT in <strong style="color:var(--text);">Airbnb → Performance → Insights → Conversion tab</strong> (last 90 days), then save it in Property Settings below.
+          Find your actual BLT in <strong style="color:var(--text);">Airbnb → Performance → Insights → Conversion tab</strong> (last 90 days).
         </div>
       </div>`;
   }
 
-  if (occ !== null) {
-    const occPct = Math.min(100, occ);
-    const fillColor = occ > 60 ? 'var(--green2)' : occ < 40 ? 'var(--red)' : 'var(--gold2)';
-    const deltaVal  = occ - 50;
-    occBarHtml = `
-      <div style="margin:18px 0 8px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);">
-            Forward occupancy · next ${blt} days
-            ${bookedNights !== null ? `<span style="font-weight:500;color:var(--text2);margin-left:6px;">(${bookedNights} of ${totalNights} nights booked)</span>` : ''}
-          </div>
-          <div style="font-family:'Instrument Serif',serif;font-size:26px;color:var(--text);line-height:1;">${occ}%</div>
-        </div>
-        <div class="pricing-occ-track">
-          <div class="pricing-occ-fill" style="width:${occPct}%;background:${fillColor};"></div>
-          <div class="pricing-occ-marker"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:5px;">
-          <span>0%</span>
-          <span>Target 50% · Delta: <span style="color:${occ >= 50 ? 'var(--green2)' : 'var(--red)'};font-weight:500;">${deltaVal >= 0 ? '+' : ''}${deltaVal}pp</span></span>
-          <span>100%</span>
-        </div>
-      </div>`;
+  // ── Decision banner ─────────────────────────────────────────────────────────
+  let decisionHtml = '';
 
-    const { decision, newPrice, delta } = pricingDecision(occ, basePrice);
+  if (bltOcc !== null) {
+    const { decision, newPrice, delta, atFloor } = pricingDecision(bltOcc, basePrice, minPrice);
     const bannerColor = decision === 'raise' ? 'var(--green2)' : decision === 'lower' ? 'var(--red)' : 'var(--gold2)';
     const bannerIcon  = decision === 'raise' ? '↑' : decision === 'lower' ? '↓' : '→';
     const bannerLabel = decision === 'raise' ? 'RAISE PRICE' : decision === 'lower' ? 'LOWER PRICE' : 'HOLD PRICE';
     const bannerText  = decision === 'raise'
-      ? `${occ}% of the next ${blt} days are booked — above the 60% threshold. Demand is strong; raise base price 10% to capture more revenue.`
+      ? `${bltOcc}% of the next ${blt} days are booked — above the 60% threshold. Demand is strong; raise base price 10% to capture more revenue.`
       : decision === 'lower'
-      ? `${occ}% of the next ${blt} days are booked — below the 40% threshold. Demand is soft; lower base price 10% to stimulate bookings.`
-      : `${occ}% of the next ${blt} days are booked — within the 40–60% target range. No change recommended this week.`;
+      ? `${bltOcc}% of the next ${blt} days are booked — below the 40% threshold. Demand is soft; lower base price 10% to stimulate bookings.${atFloor ? ` Floor price $${minPrice} applied.` : ''}`
+      : `${bltOcc}% of the next ${blt} days are booked — within the 40–60% target range. No change recommended this week.`;
 
     decisionHtml = `
       ${bltWarningHtml}
@@ -5132,7 +5172,9 @@ function renderPricingCheckinCard() {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
           <span style="font-size:18px;color:${bannerColor};line-height:1;">${bannerIcon}</span>
           <div style="font-size:13px;font-weight:600;color:${bannerColor};">${bannerLabel}</div>
-          ${decision !== 'hold' ? `<span style="font-size:12px;color:${bannerColor};margin-left:auto;font-family:'Geist Mono',monospace;">$${basePrice} → $${newPrice} (${delta >= 0 ? '+' : ''}$${delta})</span>` : `<span style="font-size:12px;color:${bannerColor};margin-left:auto;font-family:'Geist Mono',monospace;">$${basePrice} unchanged</span>`}
+          ${decision !== 'hold'
+            ? `<span style="font-size:12px;color:${bannerColor};margin-left:auto;font-family:'Geist Mono',monospace;">$${basePrice} → $${newPrice} (${delta >= 0 ? '+' : ''}$${delta})${atFloor ? ' — floor' : ''}</span>`
+            : `<span style="font-size:12px;color:${bannerColor};margin-left:auto;font-family:'Geist Mono',monospace;">$${basePrice} unchanged</span>`}
         </div>
         <div style="font-size:12px;color:var(--text2);line-height:1.55;">${bannerText}</div>
       </div>
@@ -5140,7 +5182,6 @@ function renderPricingCheckinCard() {
         <button class="btn-run" style="width:100%;" onclick="logPricingCheckin()">Log this check-in →</button>
       </div>`;
   } else if (!hasHosp && !hasRes) {
-    occBarHtml = `<div style="height:20px;background:var(--bg4);border-radius:4px;margin:18px 0 10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);">No data — connect Hospitable or log manually</div>`;
     decisionHtml = `
       <div class="api-notice" style="margin-top:4px;">
         ⚠ Hospitable not connected — live occupancy unavailable.
@@ -5150,7 +5191,6 @@ function renderPricingCheckinCard() {
         <button class="btn-secondary" style="width:100%;" onclick="openPricingLogModal()">+ Log Entry Manually</button>
       </div>`;
   } else {
-    occBarHtml = `<div style="height:20px;background:var(--bg4);border-radius:4px;margin:18px 0 10px;"></div>`;
     decisionHtml = `
       ${bltWarningHtml}
       <div style="margin-top:4px;"><button class="btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="fetchPricingOccupancy()"><div class="gen-spinner" style="width:12px;height:12px;flex-shrink:0;"></div>Load occupancy data</button></div>`;
@@ -5172,17 +5212,17 @@ function renderPricingCheckinCard() {
             <div style="font-size:10px;color:var(--text3);">through ${bltDateStr}</div>
           </div>
           <div>
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Target</div>
-            <div style="font-size:15px;font-weight:500;color:var(--text);">50%</div>
-            <div style="font-size:10px;color:var(--text3);">${occ !== null ? `${occ >= 50 ? '+' : ''}${occ - 50}pp delta` : '—'}</div>
-          </div>
-          <div>
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Base Price</div>
             <div style="font-size:15px;font-weight:500;color:var(--gold2);">$${basePrice}</div>
             <div style="font-size:10px;color:var(--text3);">${nextReview ? 'Review ' + nextReview : 'per night'}</div>
           </div>
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:4px;">Min Price</div>
+            <div style="font-size:15px;font-weight:500;color:${minPrice > 0 ? 'var(--text)' : 'var(--text3)'};">${minPrice > 0 ? '$' + minPrice : '—'}</div>
+            <div style="font-size:10px;color:var(--text3);">price floor</div>
+          </div>
         </div>
-        ${occBarHtml}
+        ${horizonsHtml}
         ${decisionHtml}
       </div>
       <div>
@@ -5192,19 +5232,25 @@ function renderPricingCheckinCard() {
           <span id="pricing-settings-chevron" style="margin-left:auto;font-size:10px;transition:transform 0.15s;">▾</span>
         </div>
         <div class="pricing-settings-body" id="pricing-settings-body">
-          <div class="form-row cols-3">
+          <div class="form-row" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
             <div class="form-field">
               <div class="form-label">Booking Lead Time (days)</div>
               <input class="form-input" id="pcfg-blt" type="number" min="1" max="180" value="${blt}" placeholder="60">
-              <div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.5;">Find in Airbnb → Performance → Insights → Conversion tab (last 90 days). Re-check quarterly.</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.5;">Airbnb → Performance → Insights → Conversion tab (last 90 days). Re-check quarterly.</div>
             </div>
+            <div class="form-field">
+              <div class="form-label">Next Review Date</div>
+              <input class="form-input" id="pcfg-review" type="date" value="${nextReview}">
+            </div>
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px;">
             <div class="form-field">
               <div class="form-label">Base Price ($/night)</div>
               <input class="form-input" id="pcfg-price" type="number" min="1" value="${basePrice}" placeholder="200">
             </div>
             <div class="form-field">
-              <div class="form-label">Next Review Date</div>
-              <input class="form-input" id="pcfg-review" type="date" value="${nextReview}">
+              <div class="form-label">Min Price / Floor ($/night)</div>
+              <input class="form-input" id="pcfg-minprice" type="number" min="0" value="${minPrice || ''}" placeholder="0 = no floor">
             </div>
           </div>
           <button class="btn-run" onclick="savePricingPropertyConfig()">Save Settings →</button>
@@ -5224,11 +5270,12 @@ function togglePricingSettings() {
 function savePricingPropertyConfig() {
   const blt       = parseInt(document.getElementById('pcfg-blt')?.value) || 60;
   const basePrice = parseInt(document.getElementById('pcfg-price')?.value) || 200;
+  const minPrice  = parseInt(document.getElementById('pcfg-minprice')?.value) || 0;
   const nextReview = document.getElementById('pcfg-review')?.value || '';
   const props = getPricingProps();
   const prop  = props.find(p => p.id === _selectedPricingProp);
   const cfg   = getPricingConfig();
-  cfg[_selectedPricingProp] = { ...(cfg[_selectedPricingProp] || {}), blt, basePrice, nextReview, name: prop?.name || '', bltConfigured: true };
+  cfg[_selectedPricingProp] = { ...(cfg[_selectedPricingProp] || {}), blt, basePrice, minPrice, nextReview, name: prop?.name || '', bltConfigured: true };
   savePricingConfig(cfg);
   // Recompute immediately from synced reservations so the bar appears right away
   delete _pricingOccCache[_selectedPricingProp];
@@ -5312,8 +5359,9 @@ function logPricingCheckin() {
   const cfg       = getPricingConfig();
   const propCfg   = cfg[propId] || {};
   const basePrice = propCfg.basePrice || 200;
+  const minPrice  = propCfg.minPrice  || 0;
   const occ       = cached.occ;
-  const { decision, newPrice } = pricingDecision(occ, basePrice);
+  const { decision, newPrice } = pricingDecision(occ, basePrice, minPrice);
 
   const props = getPricingProps();
   const prop  = props.find(p => p.id === propId);
@@ -5415,12 +5463,14 @@ function updateLogDecisionPreview() {
   const prev  = document.getElementById('plog-decision-preview');
   if (!prev || isNaN(occ) || isNaN(price) || occ < 0 || occ > 100 || price < 1) return;
 
-  const { decision, newPrice, delta } = pricingDecision(occ, price);
+  const propId   = document.getElementById('plog-prop')?.value;
+  const minPrice = propId ? (getPricingConfig()[propId]?.minPrice || 0) : 0;
+  const { decision, newPrice, delta, atFloor } = pricingDecision(occ, price, minPrice);
   const color = decision === 'raise' ? 'var(--green2)' : decision === 'lower' ? 'var(--red)' : 'var(--gold2)';
   const label = decision === 'raise' ? '↑ Raise' : decision === 'lower' ? '↓ Lower' : '→ Hold';
   prev.innerHTML = `<div style="padding:8px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <span style="color:${color};font-weight:600;">${label}</span>
-    <span style="color:var(--text2);">$${price} → $${newPrice}</span>
+    <span style="color:var(--text2);">$${price} → $${newPrice}${atFloor ? ' (floor)' : ''}</span>
     ${delta !== 0 ? `<span style="color:${color};font-family:'Geist Mono',monospace;">${delta > 0 ? '+' : ''}$${delta}</span>` : ''}
   </div>`;
 }
@@ -5436,9 +5486,11 @@ function savePricingLogEntry() {
   if (isNaN(occ) || occ < 0 || occ > 100) { toast('Enter a valid occupancy % (0–100)'); return; }
   if (isNaN(basePrice) || basePrice < 1)   { toast('Enter a valid base price'); return; }
 
-  const props = getPricingProps();
-  const prop  = props.find(p => p.id === propId);
-  const { decision, newPrice } = pricingDecision(occ, basePrice);
+  const props    = getPricingProps();
+  const prop     = props.find(p => p.id === propId);
+  const cfg      = getPricingConfig();
+  const minPrice = cfg[propId]?.minPrice || 0;
+  const { decision, newPrice } = pricingDecision(occ, basePrice, minPrice);
 
   const entry = {
     id: 'chk_' + Date.now(),
