@@ -5102,8 +5102,8 @@ function renderPricingCheckinCard() {
       {
         label: `~${halfBlt} days`, sub: '½ BLT',
         occ: hHalf.occ,
-        color: hHalf.occ >= 65 ? 'var(--green2)' : hHalf.occ >= 40 ? 'var(--gold2)' : 'var(--red)',
-        note:  hHalf.occ >= 65 ? '↑ Filling' : hHalf.occ >= 40 ? 'On pace' : 'Slow',
+        color: hHalf.occ >= 75 ? 'var(--green2)' : hHalf.occ >= 50 ? 'var(--gold2)' : 'var(--red)',
+        note:  hHalf.occ >= 75 ? '✓ On target' : hHalf.occ >= 50 ? 'Filling' : 'Slow',
       },
       {
         label: `${blt} days`, sub: 'BLT — your check-in', primary: true,
