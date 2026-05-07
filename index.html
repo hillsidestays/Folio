@@ -5096,7 +5096,7 @@ function renderPricingCheckinCard() {
       {
         label: 'Tomorrow',  sub: '1 day out',
         occ: hTomorrow.occ, booked: hTomorrow.bookedNights, total: hTomorrow.totalNights,
-        target: 90, targetLabel: 'goal: 90%',
+        target: 100, targetLabel: 'goal: 100%',
         color: hTomorrow.occ >= 90 ? 'var(--green2)' : hTomorrow.occ >= 50 ? 'var(--gold2)' : 'var(--red)',
         note:  hTomorrow.occ >= 90 ? '✓ Booked' : hTomorrow.occ > 0 ? 'Partial' : 'Open',
       },
@@ -5117,9 +5117,9 @@ function renderPricingCheckinCard() {
       {
         label: '120 days', sub: 'Extended',
         occ: hFar.occ, booked: hFar.bookedNights, total: hFar.totalNights,
-        target: 50, targetLabel: 'goal: ≤50%',
-        color: hFar.occ < 50 ? 'var(--green2)' : hFar.occ < 70 ? 'var(--gold2)' : 'var(--amber)',
-        note:  hFar.occ < 50 ? '✓ Normal' : hFar.occ < 70 ? 'Strong' : 'Exceptional',
+        targetRange: [35, 50], targetLabel: 'goal: 35–50%',
+        color: hFar.occ <= 50 && hFar.occ >= 35 ? 'var(--green2)' : hFar.occ < 35 || hFar.occ < 70 ? 'var(--gold2)' : 'var(--amber)',
+        note:  hFar.occ >= 35 && hFar.occ <= 50 ? '✓ On target' : hFar.occ < 35 ? 'Low' : hFar.occ < 70 ? 'Strong' : 'Exceptional',
       },
     ];
 
@@ -5136,9 +5136,15 @@ function renderPricingCheckinCard() {
             </div>
             <div class="pricing-occ-track">
               <div class="pricing-occ-fill" style="width:${Math.min(100, h.occ)}%;background:${h.color};"></div>
-              <div style="position:absolute;top:-3px;bottom:-26px;left:${h.target}%;width:1px;background:var(--text2);pointer-events:none;">
-                <span style="position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:9px;color:var(--text2);white-space:nowrap;">${h.targetLabel}</span>
-              </div>
+              ${h.targetRange
+                ? `<div style="position:absolute;top:-3px;bottom:-26px;left:${h.targetRange[0]}%;width:1px;background:var(--text2);pointer-events:none;"></div>
+                   <div style="position:absolute;top:-3px;bottom:-26px;left:${h.targetRange[1]}%;width:1px;background:var(--text2);pointer-events:none;">
+                     <span style="position:absolute;top:calc(100% + 4px);right:1px;transform:translateX(50%);font-size:9px;color:var(--text2);white-space:nowrap;">${h.targetLabel}</span>
+                   </div>`
+                : `<div style="position:absolute;top:-3px;bottom:-26px;left:${h.target}%;width:1px;background:var(--text2);pointer-events:none;">
+                     <span style="position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:9px;color:var(--text2);white-space:nowrap;">${h.targetLabel}</span>
+                   </div>`
+              }
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:30px;">
               <div style="font-size:10px;color:var(--text2);">${h.booked != null ? `${h.booked} of ${h.total} nights booked` : ''}</div>
