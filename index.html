@@ -5096,24 +5096,28 @@ function renderPricingCheckinCard() {
       {
         label: 'Tomorrow',  sub: '1 day out',
         occ: hTomorrow.occ, booked: hTomorrow.bookedNights, total: hTomorrow.totalNights,
+        targetFrom: 90, targetTo: 100,
         color: hTomorrow.occ >= 90 ? 'var(--green2)' : hTomorrow.occ >= 50 ? 'var(--gold2)' : 'var(--red)',
         note:  hTomorrow.occ >= 90 ? '✓ Booked' : hTomorrow.occ > 0 ? 'Partial' : 'Open',
       },
       {
         label: `~${halfBlt} days`, sub: '½ BLT',
         occ: hHalf.occ, booked: hHalf.bookedNights, total: hHalf.totalNights,
+        targetFrom: 75, targetTo: 100,
         color: hHalf.occ >= 75 ? 'var(--green2)' : hHalf.occ >= 50 ? 'var(--gold2)' : 'var(--red)',
         note:  hHalf.occ >= 75 ? '✓ On target' : hHalf.occ >= 50 ? 'Filling' : 'Slow',
       },
       {
         label: `${blt} days`, sub: 'BLT — your check-in', primary: true,
         occ: hBlt.occ, booked: hBlt.bookedNights, total: hBlt.totalNights,
+        targetFrom: 40, targetTo: 60,
         color: hBlt.occ > 60 ? 'var(--green2)' : hBlt.occ >= 40 ? 'var(--gold2)' : 'var(--red)',
         note:  hBlt.occ > 60 ? '↑ Strong' : hBlt.occ >= 40 ? '✓ Target' : '↓ Soft',
       },
       {
         label: '120 days', sub: 'Extended',
         occ: hFar.occ, booked: hFar.bookedNights, total: hFar.totalNights,
+        targetFrom: 0, targetTo: 50,
         color: hFar.occ < 50 ? 'var(--green2)' : hFar.occ < 70 ? 'var(--gold2)' : 'var(--amber)',
         note:  hFar.occ < 50 ? '✓ Normal' : hFar.occ < 70 ? 'Strong' : 'Exceptional',
       },
@@ -5132,6 +5136,7 @@ function renderPricingCheckinCard() {
             </div>
             <div class="pricing-occ-track">
               <div class="pricing-occ-fill" style="width:${Math.min(100, h.occ)}%;background:${h.color};"></div>
+              <div style="position:absolute;top:0;bottom:0;left:${h.targetFrom}%;width:${h.targetTo - h.targetFrom}%;background:rgba(200,168,75,0.13);border-left:${h.targetFrom > 0 ? '1px dashed rgba(200,168,75,0.5)' : 'none'};border-right:${h.targetTo < 100 ? '1px dashed rgba(200,168,75,0.5)' : 'none'};pointer-events:none;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
               <div style="font-size:10px;color:var(--text3);">${h.booked != null ? `${h.booked} of ${h.total} nights booked` : ''}</div>
