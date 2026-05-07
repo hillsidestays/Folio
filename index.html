@@ -5142,7 +5142,7 @@ function renderPricingCheckinCard() {
                      <span style="position:absolute;top:calc(100% + 4px);right:1px;transform:translateX(50%);font-size:9px;color:var(--text2);white-space:nowrap;">${h.targetLabel}</span>
                    </div>`
                 : `<div style="position:absolute;top:-3px;bottom:-26px;left:${h.target}%;width:1px;background:var(--text2);pointer-events:none;">
-                     <span style="position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:9px;color:var(--text2);white-space:nowrap;">${h.targetLabel}</span>
+                     <span style="position:absolute;top:calc(100% + 4px);${h.target >= 95 ? 'right:0;' : 'left:50%;transform:translateX(-50%);'}font-size:9px;color:var(--text2);white-space:nowrap;">${h.targetLabel}</span>
                    </div>`
               }
             </div>
