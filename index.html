@@ -5121,21 +5121,25 @@ function renderPricingCheckinCard() {
     ];
 
     horizonsHtml = `
-      <div style="margin:18px 0 14px;">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);margin-bottom:10px;">Occupancy at a glance</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-          ${hCells.map(h => `
-            <div style="padding:10px 8px;border-radius:var(--radius-sm);background:var(--bg3);${h.primary ? 'border:1px solid var(--border2);' : ''}">
-              <div style="font-size:9px;font-weight:${h.primary ? 600 : 400};color:${h.primary ? 'var(--text)' : 'var(--text3)'};margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.label}${h.primary ? ' ★' : ''}</div>
-              <div style="font-size:9px;color:var(--text3);margin-bottom:7px;">${h.sub}</div>
-              <div style="font-size:${h.primary ? '20px' : '16px'};font-family:'Geist Mono',monospace;font-weight:600;color:${h.color};line-height:1;">${h.occ}%</div>
-              <div style="height:3px;background:var(--bg4);border-radius:2px;margin:6px 0 5px;overflow:hidden;">
-                <div style="height:3px;width:${Math.min(100, h.occ)}%;background:${h.color};border-radius:2px;"></div>
+      <div style="margin:18px 0 14px;display:flex;flex-direction:column;gap:12px;">
+        ${hCells.map(h => `
+          <div style="padding:12px 14px;border-radius:var(--radius-sm);background:var(--bg3);${h.primary ? 'border:1px solid var(--border2);' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+              <div>
+                <span style="font-size:11px;font-weight:${h.primary ? 600 : 400};color:${h.primary ? 'var(--text)' : 'var(--text2)'};">${h.label}${h.primary ? ' ★' : ''}</span>
+                <span style="font-size:10px;color:var(--text3);margin-left:6px;">${h.sub}</span>
               </div>
-              <div style="font-size:9px;color:${h.color};">${h.note}</div>
-              ${h.primary && h.booked != null ? `<div style="font-size:9px;color:var(--text3);margin-top:3px;">${h.booked}/${h.total} nights</div>` : ''}
-            </div>`).join('')}
-        </div>
+              <div style="font-size:22px;font-family:'Geist Mono',monospace;font-weight:600;color:${h.color};line-height:1;">${h.occ}%</div>
+            </div>
+            <div class="pricing-occ-track">
+              <div class="pricing-occ-fill" style="width:${Math.min(100, h.occ)}%;background:${h.color};"></div>
+              ${h.primary ? '<div class="pricing-occ-marker"></div>' : ''}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <div style="font-size:10px;color:var(--text3);">${h.primary && h.booked != null ? `${h.booked} of ${h.total} nights booked` : ''}</div>
+              <div style="font-size:10px;font-weight:500;color:${h.color};">${h.note}</div>
+            </div>
+          </div>`).join('')}
       </div>`;
   }
 
